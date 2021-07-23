@@ -1,6 +1,7 @@
 import { DeepPartial, ID } from '@vendure/common/lib/shared-types';
 import { CreateDateColumn, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 
+import { TIMESTAMP } from '../column-types';
 import { PrimaryGeneratedId } from '../entity-id.decorator';
 
 /**
@@ -22,7 +23,7 @@ export abstract class VendureEntity {
     @PrimaryGeneratedId()
     id: ID;
 
-    @CreateDateColumn() createdAt: Date;
+    @CreateDateColumn({ type: TIMESTAMP }) createdAt: Date;
 
-    @UpdateDateColumn() updatedAt: Date;
+    @UpdateDateColumn({ type: TIMESTAMP }) updatedAt: Date;
 }

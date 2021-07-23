@@ -3,6 +3,7 @@ import { DeepPartial } from '@vendure/common/lib/shared-types';
 import { Column, Entity } from 'typeorm';
 
 import { VendureEntity } from '../../entity/base/base.entity';
+import { TIMESTAMP } from '../../entity/column-types';
 
 @Entity()
 export class JobRecord extends VendureEntity {
@@ -28,10 +29,10 @@ export class JobRecord extends VendureEntity {
     @Column({ nullable: true })
     error: string;
 
-    @Column({ nullable: true, precision: 6 })
+    @Column({ type: TIMESTAMP, nullable: true, precision: 6 })
     startedAt?: Date;
 
-    @Column({ nullable: true, precision: 6 })
+    @Column({ type: TIMESTAMP, nullable: true, precision: 6 })
     settledAt?: Date;
 
     @Column()

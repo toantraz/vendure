@@ -16,6 +16,7 @@ import { HasCustomFields } from '../../config/custom-field/custom-field-types';
 import { OrderState } from '../../service/helpers/order-state-machine/order-state';
 import { VendureEntity } from '../base/base.entity';
 import { Channel } from '../channel/channel.entity';
+import { TIMESTAMP } from '../column-types';
 import { CustomOrderFields } from '../custom-entity-fields';
 import { Customer } from '../customer/customer.entity';
 import { EntityId } from '../entity-id.decorator';
@@ -51,7 +52,7 @@ export class Order extends VendureEntity implements ChannelAware, HasCustomField
     @Column({ default: true })
     active: boolean;
 
-    @Column({ nullable: true })
+    @Column({ type: TIMESTAMP, nullable: true })
     orderPlacedAt?: Date;
 
     @ManyToOne(type => Customer)

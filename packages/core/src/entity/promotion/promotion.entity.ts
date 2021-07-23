@@ -14,6 +14,7 @@ import {
 } from '../../config/promotion/promotion-action';
 import { PromotionCondition, PromotionConditionState } from '../../config/promotion/promotion-condition';
 import { Channel } from '../channel/channel.entity';
+import { TIMESTAMP } from '../column-types';
 import { OrderItem } from '../order-item/order-item.entity';
 import { OrderLine } from '../order-line/order-line.entity';
 import { Order } from '../order/order.entity';
@@ -72,13 +73,13 @@ export class Promotion extends AdjustmentSource implements ChannelAware, SoftDel
         this.allActions = actions.reduce((hash, o) => ({ ...hash, [o.code]: o }), {});
     }
 
-    @Column({ type: Date, nullable: true })
+    @Column({ type: TIMESTAMP, nullable: true })
     deletedAt: Date | null;
 
-    @Column({ type: Date, nullable: true })
+    @Column({ type: TIMESTAMP, nullable: true })
     startsAt: Date | null;
 
-    @Column({ type: Date, nullable: true })
+    @Column({ type: TIMESTAMP, nullable: true })
     endsAt: Date | null;
 
     @Column({ nullable: true })

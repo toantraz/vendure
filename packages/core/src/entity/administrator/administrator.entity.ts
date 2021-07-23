@@ -4,6 +4,7 @@ import { Column, Entity, JoinColumn, OneToOne } from 'typeorm';
 import { SoftDeletable } from '../../common/types/common-types';
 import { HasCustomFields } from '../../config/custom-field/custom-field-types';
 import { VendureEntity } from '../base/base.entity';
+import { TIMESTAMP } from '../column-types';
 import { CustomAdministratorFields } from '../custom-entity-fields';
 import { User } from '../user/user.entity';
 
@@ -19,7 +20,7 @@ export class Administrator extends VendureEntity implements SoftDeletable, HasCu
         super(input);
     }
 
-    @Column({ type: Date, nullable: true })
+    @Column({ type: TIMESTAMP, nullable: true })
     deletedAt: Date | null;
 
     @Column() firstName: string;

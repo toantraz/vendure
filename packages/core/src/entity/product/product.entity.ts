@@ -7,6 +7,7 @@ import { HasCustomFields } from '../../config/custom-field/custom-field-types';
 import { Asset } from '../asset/asset.entity';
 import { VendureEntity } from '../base/base.entity';
 import { Channel } from '../channel/channel.entity';
+import { TIMESTAMP } from '../column-types';
 import { CustomProductFields } from '../custom-entity-fields';
 import { FacetValue } from '../facet-value/facet-value.entity';
 import { ProductOptionGroup } from '../product-option-group/product-option-group.entity';
@@ -30,7 +31,7 @@ export class Product
         super(input);
     }
 
-    @Column({ type: Date, nullable: true })
+    @Column({ type: TIMESTAMP, nullable: true })
     deletedAt: Date | null;
 
     name: LocaleString;
