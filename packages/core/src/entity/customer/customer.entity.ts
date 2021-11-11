@@ -6,6 +6,7 @@ import { HasCustomFields } from '../../config/custom-field/custom-field-types';
 import { Address } from '../address/address.entity';
 import { VendureEntity } from '../base/base.entity';
 import { Channel } from '../channel/channel.entity';
+import { TIMESTAMP } from '../column-types';
 import { CustomCustomerFields } from '../custom-entity-fields';
 import { CustomerGroup } from '../customer-group/customer-group.entity';
 import { Order } from '../order/order.entity';
@@ -25,7 +26,7 @@ export class Customer extends VendureEntity implements ChannelAware, HasCustomFi
         super(input);
     }
 
-    @Column({ type: Date, nullable: true })
+    @Column({ type: TIMESTAMP, nullable: true })
     deletedAt: Date | null;
 
     @Column({ nullable: true })

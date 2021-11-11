@@ -5,6 +5,7 @@ import { SoftDeletable } from '../../common/types/common-types';
 import { LocaleString, Translatable, Translation } from '../../common/types/locale-types';
 import { HasCustomFields } from '../../config/custom-field/custom-field-types';
 import { VendureEntity } from '../base/base.entity';
+import { TIMESTAMP } from '../column-types';
 import { CustomProductOptionFields } from '../custom-entity-fields';
 import { EntityId } from '../entity-id.decorator';
 import { ProductOptionGroup } from '../product-option-group/product-option-group.entity';
@@ -22,7 +23,7 @@ export class ProductOption extends VendureEntity implements Translatable, HasCus
     constructor(input?: DeepPartial<ProductOption>) {
         super(input);
     }
-    @Column({ type: Date, nullable: true })
+    @Column({ type: TIMESTAMP, nullable: true })
     deletedAt: Date | null;
 
     name: LocaleString;
