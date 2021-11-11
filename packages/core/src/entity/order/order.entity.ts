@@ -11,6 +11,7 @@ import { summate } from '@vendure/common/lib/shared-utils';
 import { Column, Entity, JoinTable, ManyToMany, ManyToOne, OneToMany } from 'typeorm';
 
 import { Calculated } from '../../common/calculated-decorator';
+import { InternalServerError } from '../../common/error/errors';
 import { ChannelAware } from '../../common/types/common-types';
 import { HasCustomFields } from '../../config/custom-field/custom-field-types';
 import { OrderState } from '../../service/helpers/order-state-machine/order-state';
@@ -45,13 +46,32 @@ export class Order extends VendureEntity implements ChannelAware, HasCustomField
         super(input);
     }
 
+    /**
+     * @description
+     * A unique code for the Order, generated according to the
+     * {@link OrderCodeStrategy}. This should be used as an order reference
+     * for Customers, rather than the Order's id.
+     */
     @Column() code: string;
 
     @Column('varchar') state: OrderState;
 
+    /**
+     * @description
+     * Whether the Order is considered "active", meaning that the
+     * Customer can still make changes to it and has not yet completed
+     * the checkout process.
+     * This is governed by the {@link OrderPlacedStrategy}.
+     */
     @Column({ default: true })
     active: boolean;
 
+    /**
+     * @description
+     * The date & time that the Order was placed, i.e. the Customer
+     * completed the checkout and the Order is no longer "active".
+     * This is governed by the {@link OrderPlacedStrategy}.
+     */
     @Column({ type: TIMESTAMP, nullable: true })
     orderPlacedAt?: Date;
 
@@ -61,12 +81,28 @@ export class Order extends VendureEntity implements ChannelAware, HasCustomField
     @OneToMany(type => OrderLine, line => line.order)
     lines: OrderLine[];
 
+    /**
+     * @description
+     * Surcharges are arbitrary modifications to the Order total which are neither
+     * ProductVariants nor discounts resulting from applied Promotions. For example,
+     * one-off discounts based on customer interaction, or surcharges based on payment
+     * methods.
+     */
     @OneToMany(type => Surcharge, surcharge => surcharge.order)
     surcharges: Surcharge[];
 
+    /**
+     * @description
+     * An array of all coupon codes applied to the Order.
+     */
     @Column('simple-array')
     couponCodes: string[];
 
+    /**
+     * @description
+     * Promotions applied to the order. Only gets populated after the payment process has completed,
+     * i.e. the Order is no longer active.
+     */
     @ManyToMany(type => Promotion)
     @JoinTable()
     promotions: Promotion[];
@@ -94,15 +130,34 @@ export class Order extends VendureEntity implements ChannelAware, HasCustomField
     @OneToMany(type => OrderModification, modification => modification.order)
     modifications: OrderModification[];
 
+    /**
+     * @description
+     * The subTotal is the total of all OrderLines in the Order. This figure also includes any Order-level
+     * discounts which have been prorated (proportionally distributed) amongst the OrderItems.
+     * To get a total of all OrderLines which does not account for prorated discounts, use the
+     * sum of {@link OrderLine}'s `discountedLinePrice` values.
+     */
     @Column()
     subTotal: number;
 
+    /**
+     * @description
+     * Same as subTotal, but inclusive of tax.
+     */
     @Column()
     subTotalWithTax: number;
 
+    /**
+     * @description
+     * The shipping charges applied to this order.
+     */
     @OneToMany(type => ShippingLine, shippingLine => shippingLine.order)
     shippingLines: ShippingLine[];
 
+    /**
+     * @description
+     * The total of all the `shippingLines`.
+     */
     @Column({ default: 0 })
     shipping: number;
 
@@ -111,6 +166,7 @@ export class Order extends VendureEntity implements ChannelAware, HasCustomField
 
     @Calculated()
     get discounts(): Discount[] {
+        this.throwIfLinesNotJoined('discounts');
         const groupedAdjustments = new Map<string, Discount>();
         for (const line of this.lines) {
             for (const discount of line.discounts) {
@@ -137,6 +193,10 @@ export class Order extends VendureEntity implements ChannelAware, HasCustomField
         return [...groupedAdjustments.values()];
     }
 
+    /**
+     * @description
+     * Equal to `subTotal` plus `shipping`
+     */
     @Calculated({
         query: qb =>
             qb
@@ -157,6 +217,10 @@ export class Order extends VendureEntity implements ChannelAware, HasCustomField
         return this.subTotal + (this.shipping || 0);
     }
 
+    /**
+     * @description
+     * The final payable amount. Equal to `subTotalWithTax` plus `shippingWithTax`.
+     */
     @Calculated({
         query: qb =>
             qb
@@ -196,11 +260,17 @@ export class Order extends VendureEntity implements ChannelAware, HasCustomField
         expression: 'qty',
     })
     get totalQuantity(): number {
+        this.throwIfLinesNotJoined('totalQuantity');
         return summate(this.lines, 'quantity');
     }
 
+    /**
+     * @description
+     * A summary of the taxes being applied to this Order.
+     */
     @Calculated()
     get taxSummary(): OrderTaxSummary[] {
+        this.throwIfLinesNotJoined('taxSummary');
         const taxRateMap = new Map<
             string,
             { rate: number; base: number; tax: number; description: string }
@@ -240,8 +310,20 @@ export class Order extends VendureEntity implements ChannelAware, HasCustomField
     }
 
     getOrderItems(): OrderItem[] {
+        this.throwIfLinesNotJoined('getOrderItems');
         return this.lines.reduce((items, line) => {
             return [...items, ...line.items];
         }, [] as OrderItem[]);
+    }
+
+    private throwIfLinesNotJoined(propertyName: keyof Order) {
+        if (this.lines == null) {
+            const errorMessage = [
+                `The property "${propertyName}" on the Order entity requires the Order.lines relation to be joined.`,
+                `This can be done with the EntityHydratorService: \`await entityHydratorService.hydrate(ctx, order, { relations: ['lines'] })\``,
+            ];
+
+            throw new InternalServerError(errorMessage.join('\n'));
+        }
     }
 }
