@@ -1,3 +1,4 @@
+import { LogicalOperator } from '@vendure/common/lib/generated-types';
 import { mergeConfig } from '@vendure/core';
 import { createTestEnvironment } from '@vendure/testing';
 import gql from 'graphql-tag';
@@ -15,7 +16,7 @@ fixPostgresTimezone();
 
 describe('ListQueryBuilder', () => {
     const { server, adminClient, shopClient } = createTestEnvironment(
-        mergeConfig(testConfig, {
+        mergeConfig(testConfig(), {
             apiOptions: {
                 shopListQueryLimit: 10,
                 adminListQueryLimit: 30,
@@ -320,6 +321,136 @@ describe('ListQueryBuilder', () => {
         });
     });
 
+    describe('ID filtering', () => {
+        it('eq', async () => {
+            const { testEntities } = await adminClient.query(GET_LIST, {
+                options: {
+                    filter: {
+                        ownerId: {
+                            eq: '13',
+                        },
+                    },
+                },
+            });
+
+            expect(getItemLabels(testEntities.items)).toEqual(['D']);
+        });
+
+        it('notEq', async () => {
+            const { testEntities } = await adminClient.query(GET_LIST, {
+                options: {
+                    filter: {
+                        ownerId: {
+                            notEq: '13',
+                        },
+                    },
+                },
+            });
+
+            expect(getItemLabels(testEntities.items)).toEqual(['A', 'B', 'C', 'E', 'F']);
+        });
+
+        it('in', async () => {
+            const { testEntities } = await adminClient.query(GET_LIST, {
+                options: {
+                    filter: {
+                        ownerId: {
+                            in: ['10', '15'],
+                        },
+                    },
+                },
+            });
+
+            expect(getItemLabels(testEntities.items)).toEqual(['A', 'F']);
+        });
+
+        it('notIn', async () => {
+            const { testEntities } = await adminClient.query(GET_LIST, {
+                options: {
+                    filter: {
+                        ownerId: {
+                            notIn: ['10', '15'],
+                        },
+                    },
+                },
+            });
+
+            expect(getItemLabels(testEntities.items)).toEqual(['B', 'C', 'D', 'E']);
+        });
+
+        describe('regex', () => {
+            it('simple substring', async () => {
+                const { testEntities } = await adminClient.query(GET_LIST, {
+                    options: {
+                        filter: {
+                            description: {
+                                regex: 'or',
+                            },
+                        },
+                    },
+                });
+
+                expect(getItemLabels(testEntities.items)).toEqual(['A', 'B', 'D']);
+            });
+
+            it('start of string', async () => {
+                const { testEntities } = await adminClient.query(GET_LIST, {
+                    options: {
+                        filter: {
+                            description: {
+                                regex: '^in',
+                            },
+                        },
+                    },
+                });
+
+                expect(getItemLabels(testEntities.items)).toEqual(['E']);
+            });
+
+            it('end of string', async () => {
+                const { testEntities } = await adminClient.query(GET_LIST, {
+                    options: {
+                        filter: {
+                            description: {
+                                regex: 'or$',
+                            },
+                        },
+                    },
+                });
+
+                expect(getItemLabels(testEntities.items)).toEqual(['D']);
+            });
+
+            it('alternation', async () => {
+                const { testEntities } = await adminClient.query(GET_LIST, {
+                    options: {
+                        filter: {
+                            description: {
+                                regex: 'dolor|tempor',
+                            },
+                        },
+                    },
+                });
+
+                expect(getItemLabels(testEntities.items)).toEqual(['B', 'D']);
+            });
+
+            it('complex', async () => {
+                const { testEntities } = await adminClient.query(GET_LIST, {
+                    options: {
+                        filter: {
+                            description: {
+                                regex: '(dolor|tempor)|inc[i]?d[^a]d.*nt',
+                            },
+                        },
+                    },
+                });
+
+                expect(getItemLabels(testEntities.items)).toEqual(['B', 'D', 'E']);
+            });
+        });
+    });
+
     describe('boolean filtering', () => {
         it('eq', async () => {
             const { testEntities } = await adminClient.query(GET_LIST, {
@@ -497,6 +628,93 @@ describe('ListQueryBuilder', () => {
             });
 
             expect(getItemLabels(testEntities.items)).toEqual(['B']);
+        });
+    });
+
+    describe('multiple filters with filterOperator', () => {
+        it('default AND', async () => {
+            const { testEntities } = await adminClient.query(GET_LIST, {
+                options: {
+                    filter: {
+                        description: {
+                            contains: 'Lorem',
+                        },
+                        active: {
+                            eq: false,
+                        },
+                    },
+                },
+            });
+
+            expect(getItemLabels(testEntities.items)).toEqual([]);
+        });
+
+        it('explicit AND', async () => {
+            const { testEntities } = await adminClient.query(GET_LIST, {
+                options: {
+                    filter: {
+                        description: {
+                            contains: 'Lorem',
+                        },
+                        active: {
+                            eq: false,
+                        },
+                    },
+                    filterOperator: LogicalOperator.AND,
+                },
+            });
+
+            expect(getItemLabels(testEntities.items)).toEqual([]);
+        });
+
+        it('explicit OR', async () => {
+            const { testEntities } = await adminClient.query(GET_LIST, {
+                options: {
+                    filter: {
+                        description: {
+                            contains: 'Lorem',
+                        },
+                        active: {
+                            eq: false,
+                        },
+                    },
+                    filterOperator: LogicalOperator.OR,
+                },
+            });
+
+            expect(getItemLabels(testEntities.items)).toEqual(['A', 'C', 'E', 'F']);
+        });
+
+        it('explicit OR with 3 filters', async () => {
+            const { testEntities } = await adminClient.query(GET_LIST, {
+                options: {
+                    filter: {
+                        description: {
+                            contains: 'eiusmod',
+                        },
+                        active: {
+                            eq: false,
+                        },
+                        order: {
+                            lt: 3,
+                        },
+                    },
+                    filterOperator: LogicalOperator.OR,
+                },
+            });
+
+            expect(getItemLabels(testEntities.items)).toEqual(['A', 'B', 'C', 'D', 'E', 'F']);
+        });
+
+        it('explicit OR with empty filters object', async () => {
+            const { testEntities } = await adminClient.query(GET_LIST, {
+                options: {
+                    filter: {},
+                    filterOperator: LogicalOperator.OR,
+                },
+            });
+
+            expect(getItemLabels(testEntities.items)).toEqual(['A', 'B', 'C', 'D', 'E', 'F']);
         });
     });
 

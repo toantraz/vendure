@@ -9,20 +9,29 @@ import { ID } from '@vendure/common/lib/shared-types';
 import { RequestContext } from '../../api/common/request-context';
 import { Translated } from '../../common/types/locale-types';
 import { assertFound } from '../../common/utils';
+import { TransactionalConnection } from '../../connection/transactional-connection';
 import { ProductOptionGroup } from '../../entity/product-option-group/product-option-group.entity';
 import { ProductOptionTranslation } from '../../entity/product-option/product-option-translation.entity';
 import { ProductOption } from '../../entity/product-option/product-option.entity';
+import { EventBus } from '../../event-bus';
+import { ProductOptionEvent } from '../../event-bus/events/product-option-event';
 import { CustomFieldRelationService } from '../helpers/custom-field-relation/custom-field-relation.service';
 import { TranslatableSaver } from '../helpers/translatable-saver/translatable-saver';
 import { translateDeep } from '../helpers/utils/translate-entity';
-import { TransactionalConnection } from '../transaction/transactional-connection';
 
+/**
+ * @description
+ * Contains methods relating to {@link ProductOption} entities.
+ *
+ * @docsCategory services
+ */
 @Injectable()
 export class ProductOptionService {
     constructor(
         private connection: TransactionalConnection,
         private translatableSaver: TranslatableSaver,
         private customFieldRelationService: CustomFieldRelationService,
+        private eventBus: EventBus,
     ) {}
 
     findAll(ctx: RequestContext): Promise<Array<Translated<ProductOption>>> {
@@ -59,12 +68,13 @@ export class ProductOptionService {
             translationType: ProductOptionTranslation,
             beforeSave: po => (po.group = productOptionGroup),
         });
-        await this.customFieldRelationService.updateRelations(
+        const optionWithRelations = await this.customFieldRelationService.updateRelations(
             ctx,
             ProductOption,
             input as CreateProductOptionInput,
             option,
         );
+        this.eventBus.publish(new ProductOptionEvent(ctx, optionWithRelations, 'created', input));
         return assertFound(this.findOne(ctx, option.id));
     }
 
@@ -76,6 +86,7 @@ export class ProductOptionService {
             translationType: ProductOptionTranslation,
         });
         await this.customFieldRelationService.updateRelations(ctx, ProductOption, input, option);
+        this.eventBus.publish(new ProductOptionEvent(ctx, option, 'updated', input));
         return assertFound(this.findOne(ctx, option.id));
     }
 }

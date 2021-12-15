@@ -96,7 +96,7 @@ const currentUserErrorGuard: ErrorResultGuard<CurrentUserShopFragment> = createE
 
 describe('Shop auth & accounts', () => {
     const { server, adminClient, shopClient } = createTestEnvironment(
-        mergeConfig(testConfig, {
+        mergeConfig(testConfig(), {
             plugins: [TestEmailPlugin as any],
         }),
     );
@@ -653,6 +653,10 @@ describe('Shop auth & accounts', () => {
 
             expect(updateCustomerEmailAddress.success).toBe(true);
 
+            // Allow for occasional race condition where the event does not
+            // publish before the assertions are made.
+            await new Promise(resolve => setTimeout(resolve, 10));
+
             expect(sendEmailFn).toHaveBeenCalled();
             expect(sendEmailFn.mock.calls[0][0] instanceof IdentifierChangeEvent).toBe(true);
         });
@@ -774,7 +778,7 @@ describe('Shop auth & accounts', () => {
 
 describe('Expiring tokens', () => {
     const { server, adminClient, shopClient } = createTestEnvironment(
-        mergeConfig(testConfig, {
+        mergeConfig(testConfig(), {
             plugins: [TestEmailPlugin as any],
             authOptions: {
                 verificationTokenDuration: '1ms',
@@ -876,7 +880,7 @@ describe('Expiring tokens', () => {
 
 describe('Registration without email verification', () => {
     const { server, shopClient } = createTestEnvironment(
-        mergeConfig(testConfig, {
+        mergeConfig(testConfig(), {
             plugins: [TestEmailPlugin as any],
             authOptions: {
                 requireVerification: false,
@@ -956,7 +960,7 @@ describe('Registration without email verification', () => {
 
 describe('Updating email address without email verification', () => {
     const { server, adminClient, shopClient } = createTestEnvironment(
-        mergeConfig(testConfig, {
+        mergeConfig(testConfig(), {
             plugins: [TestEmailPlugin as any],
             authOptions: {
                 requireVerification: false,

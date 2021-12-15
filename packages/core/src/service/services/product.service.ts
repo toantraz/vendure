@@ -19,6 +19,7 @@ import { ProductOptionInUseError } from '../../common/error/generated-graphql-ad
 import { ListQueryOptions } from '../../common/types/common-types';
 import { Translated } from '../../common/types/locale-types';
 import { assertFound, idsAreEqual } from '../../common/utils';
+import { TransactionalConnection } from '../../connection/transactional-connection';
 import { Channel } from '../../entity/channel/channel.entity';
 import { FacetValue } from '../../entity/facet-value/facet-value.entity';
 import { ProductOptionGroup } from '../../entity/product-option-group/product-option-group.entity';
@@ -27,12 +28,12 @@ import { Product } from '../../entity/product/product.entity';
 import { EventBus } from '../../event-bus/event-bus';
 import { ProductChannelEvent } from '../../event-bus/events/product-channel-event';
 import { ProductEvent } from '../../event-bus/events/product-event';
+import { ProductOptionGroupChangeEvent } from '../../event-bus/events/product-option-group-change-event';
 import { CustomFieldRelationService } from '../helpers/custom-field-relation/custom-field-relation.service';
 import { ListQueryBuilder } from '../helpers/list-query-builder/list-query-builder';
 import { SlugValidator } from '../helpers/slug-validator/slug-validator';
 import { TranslatableSaver } from '../helpers/translatable-saver/translatable-saver';
 import { translateDeep } from '../helpers/utils/translate-entity';
-import { TransactionalConnection } from '../transaction/transactional-connection';
 
 import { AssetService } from './asset.service';
 import { ChannelService } from './channel.service';
@@ -42,6 +43,12 @@ import { ProductVariantService } from './product-variant.service';
 import { RoleService } from './role.service';
 import { TaxRateService } from './tax-rate.service';
 
+/**
+ * @description
+ * Contains methods relating to {@link Product} entities.
+ *
+ * @docsCategory services
+ */
 @Injectable()
 export class ProductService {
     private readonly relations = ['featuredAsset', 'assets', 'channels', 'facetValues', 'facetValues.facet'];
@@ -116,6 +123,10 @@ export class ProductService {
             );
     }
 
+    /**
+     * @description
+     * Returns all Channels to which the Product is assigned.
+     */
     async getProductChannels(ctx: RequestContext, productId: ID): Promise<Channel[]> {
         const product = await this.connection.getEntityOrThrow(ctx, Product, productId, {
             relations: ['channels'],
@@ -174,7 +185,7 @@ export class ProductService {
             entityType: Product,
             translationType: ProductTranslation,
             beforeSave: async p => {
-                this.channelService.assignToCurrentChannel(p, ctx);
+                await this.channelService.assignToCurrentChannel(p, ctx);
                 if (input.facetValueIds) {
                     p.facetValues = await this.facetValueService.findByIds(ctx, input.facetValueIds);
                 }
@@ -183,7 +194,7 @@ export class ProductService {
         });
         await this.customFieldRelationService.updateRelations(ctx, Product, input, product);
         await this.assetService.updateEntityAssets(ctx, product, input);
-        this.eventBus.publish(new ProductEvent(ctx, product, 'created'));
+        this.eventBus.publish(new ProductEvent(ctx, product, 'created', input));
         return assertFound(this.findOne(ctx, product.id));
     }
 
@@ -213,7 +224,7 @@ export class ProductService {
             },
         });
         await this.customFieldRelationService.updateRelations(ctx, Product, input, updatedProduct);
-        this.eventBus.publish(new ProductEvent(ctx, updatedProduct, 'updated'));
+        this.eventBus.publish(new ProductEvent(ctx, updatedProduct, 'updated', input));
         return assertFound(this.findOne(ctx, updatedProduct.id));
     }
 
@@ -224,7 +235,7 @@ export class ProductService {
         });
         product.deletedAt = new Date();
         await this.connection.getRepository(ctx, Product).save(product, { reload: false });
-        this.eventBus.publish(new ProductEvent(ctx, product, 'deleted'));
+        this.eventBus.publish(new ProductEvent(ctx, product, 'deleted', productId));
         await this.productVariantService.softDelete(
             ctx,
             product.variants.map(v => v.id),
@@ -234,6 +245,14 @@ export class ProductService {
         };
     }
 
+    /**
+     * @description
+     * Assigns a Product to the specified Channel, and optionally uses a `priceFactor` to set the ProductVariantPrices
+     * on the new Channel.
+     *
+     * Internally, this method will also call {@link ProductVariantService} `assignProductVariantsToChannel()` for
+     * each of the Product's variants, and will assign the Product's Assets to the Channel too.
+     */
     async assignProductsToChannel(
         ctx: RequestContext,
         input: AssignProductsToChannelInput,
@@ -251,7 +270,7 @@ export class ProductService {
             priceFactor: input.priceFactor,
         });
         const assetIds: ID[] = unique(
-            ([] as ID[]).concat(...productsWithVariants.map(p => p.assets.map(a => a.id))),
+            ([] as ID[]).concat(...productsWithVariants.map(p => p.assets.map(a => a.assetId))),
         );
         await this.assetService.assignToChannel(ctx, { channelId: input.channelId, assetIds });
         const products = await this.connection.getRepository(ctx, Product).findByIds(input.productIds);
@@ -309,6 +328,7 @@ export class ProductService {
         }
 
         await this.connection.getRepository(ctx, Product).save(product, { reload: false });
+        this.eventBus.publish(new ProductOptionGroupChangeEvent(ctx, product, optionGroupId, 'assigned'));
         return assertFound(this.findOne(ctx, productId));
     }
 
@@ -328,6 +348,7 @@ export class ProductService {
         product.optionGroups = product.optionGroups.filter(g => g.id !== optionGroupId);
 
         await this.connection.getRepository(ctx, Product).save(product, { reload: false });
+        this.eventBus.publish(new ProductOptionGroupChangeEvent(ctx, product, optionGroupId, 'removed'));
         return assertFound(this.findOne(ctx, productId));
     }
 

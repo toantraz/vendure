@@ -4,21 +4,31 @@ import { UpdateGlobalSettingsInput } from '@vendure/common/lib/generated-types';
 import { RequestContext } from '../../api/common/request-context';
 import { InternalServerError } from '../../common/error/errors';
 import { ConfigService } from '../../config/config.service';
+import { TransactionalConnection } from '../../connection/transactional-connection';
 import { GlobalSettings } from '../../entity/global-settings/global-settings.entity';
+import { EventBus } from '../../event-bus';
+import { GlobalSettingsEvent } from '../../event-bus/events/global-settings-event';
 import { CustomFieldRelationService } from '../helpers/custom-field-relation/custom-field-relation.service';
 import { patchEntity } from '../helpers/utils/patch-entity';
-import { TransactionalConnection } from '../transaction/transactional-connection';
 
+/**
+ * @description
+ * Contains methods relating to the {@link GlobalSettings} entity.
+ *
+ * @docsCategory services
+ */
 @Injectable()
 export class GlobalSettingsService {
     constructor(
         private connection: TransactionalConnection,
         private configService: ConfigService,
         private customFieldRelationService: CustomFieldRelationService,
+        private eventBus: EventBus,
     ) {}
 
     /**
      * Ensure there is a single global settings row in the database.
+     * @internal
      */
     async initGlobalSettings() {
         try {
@@ -39,6 +49,10 @@ export class GlobalSettingsService {
         }
     }
 
+    /**
+     * @description
+     * Returns the GlobalSettings entity.
+     */
     async getSettings(ctx: RequestContext): Promise<GlobalSettings> {
         const settings = await this.connection.getRepository(ctx, GlobalSettings).findOne({
             order: {
@@ -53,6 +67,7 @@ export class GlobalSettingsService {
 
     async updateSettings(ctx: RequestContext, input: UpdateGlobalSettingsInput): Promise<GlobalSettings> {
         const settings = await this.getSettings(ctx);
+        this.eventBus.publish(new GlobalSettingsEvent(ctx, settings, input));
         patchEntity(settings, input);
         await this.customFieldRelationService.updateRelations(ctx, GlobalSettings, input, settings);
         return this.connection.getRepository(ctx, GlobalSettings).save(settings);

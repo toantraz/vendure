@@ -24,6 +24,7 @@ const specFileToIgnore = [
     'custom-permissions.e2e-spec',
     'parallel-transactions.e2e-spec',
     'order-merge.e2e-spec',
+    'entity-hydrator.e2e-spec',
 ];
 const E2E_ADMIN_QUERY_FILES = path.join(
     __dirname,
@@ -119,18 +120,16 @@ Promise.all([
                     plugins: clientPlugins,
                     config: e2eConfig,
                 },
-                [path.join(
-                    __dirname,
-                    '../../packages/admin-ui/src/lib/core/src/common/generated-types.ts',
-                )]: {
-                    schema: [ADMIN_SCHEMA_OUTPUT_FILE, path.join(__dirname, 'client-schema.ts')],
-                    documents: CLIENT_QUERY_FILES,
-                    plugins: clientPlugins,
-                    config: {
-                        ...config,
-                        skipTypeNameForRoot: true,
+                [path.join(__dirname, '../../packages/admin-ui/src/lib/core/src/common/generated-types.ts')]:
+                    {
+                        schema: [ADMIN_SCHEMA_OUTPUT_FILE, path.join(__dirname, 'client-schema.ts')],
+                        documents: CLIENT_QUERY_FILES,
+                        plugins: clientPlugins,
+                        config: {
+                            ...config,
+                            skipTypeNameForRoot: true,
+                        },
                     },
-                },
                 [path.join(
                     __dirname,
                     '../../packages/admin-ui/src/lib/core/src/common/introspection-result.ts',
@@ -162,6 +161,26 @@ Promise.all([
                         maybeValue: 'T',
                     },
                 },
+                [path.join(__dirname, '../../packages/payments-plugin/e2e/graphql/generated-admin-types.ts')]:
+                    {
+                        schema: [ADMIN_SCHEMA_OUTPUT_FILE],
+                        documents: path.join(
+                            __dirname,
+                            '../../packages/payments-plugin/e2e/graphql/admin-queries.ts',
+                        ),
+                        plugins: clientPlugins,
+                        config: e2eConfig,
+                    },
+                [path.join(__dirname, '../../packages/payments-plugin/e2e/graphql/generated-shop-types.ts')]:
+                    {
+                        schema: [SHOP_SCHEMA_OUTPUT_FILE],
+                        documents: path.join(
+                            __dirname,
+                            '../../packages/payments-plugin/e2e/graphql/shop-queries.ts',
+                        ),
+                        plugins: clientPlugins,
+                        config: e2eConfig,
+                    },
             },
         });
     })

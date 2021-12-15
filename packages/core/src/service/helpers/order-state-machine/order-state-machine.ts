@@ -11,14 +11,16 @@ import { StateMachineConfig, Transitions } from '../../../common/finite-state-ma
 import { validateTransitionDefinition } from '../../../common/finite-state-machine/validate-transition-definition';
 import { awaitPromiseOrObservable } from '../../../common/utils';
 import { ConfigService } from '../../../config/config.service';
+import { TransactionalConnection } from '../../../connection/transactional-connection';
 import { OrderModification } from '../../../entity/order-modification/order-modification.entity';
 import { Order } from '../../../entity/order/order.entity';
 import { Payment } from '../../../entity/payment/payment.entity';
 import { ProductVariant } from '../../../entity/product-variant/product-variant.entity';
+import { OrderPlacedEvent } from '../../../event-bus/events/order-placed-event';
+import { EventBus } from '../../../event-bus/index';
 import { HistoryService } from '../../services/history.service';
 import { PromotionService } from '../../services/promotion.service';
 import { StockMovementService } from '../../services/stock-movement.service';
-import { TransactionalConnection } from '../../transaction/transactional-connection';
 import {
     orderItemsAreAllCancelled,
     orderItemsAreDelivered,
@@ -42,6 +44,7 @@ export class OrderStateMachine {
         private stockMovementService: StockMovementService,
         private historyService: HistoryService,
         private promotionService: PromotionService,
+        private eventBus: EventBus,
     ) {
         this.config = this.initConfig();
     }
@@ -90,6 +93,9 @@ export class OrderStateMachine {
             }
         }
         if (fromState === 'ArrangingAdditionalPayment') {
+            if (toState === 'Cancelled') {
+                return;
+            }
             const existingPayments = await this.connection.getRepository(data.ctx, Payment).find({
                 relations: ['refunds'],
                 where: {
@@ -122,6 +128,9 @@ export class OrderStateMachine {
             }
             if (!data.order.customer) {
                 return `message.cannot-transition-to-payment-without-customer`;
+            }
+            if (!data.order.shippingLines || data.order.shippingLines.length === 0) {
+                return `message.cannot-transition-to-payment-without-shipping-method`;
             }
         }
         if (toState === 'PaymentAuthorized') {
@@ -176,6 +185,7 @@ export class OrderStateMachine {
                 order.active = false;
                 order.orderPlacedAt = new Date();
                 await this.promotionService.addPromotionsToOrder(ctx, order);
+                this.eventBus.publish(new OrderPlacedEvent(fromState, toState, ctx, order));
             }
         }
         const shouldAllocateStock = await stockAllocationStrategy.shouldAllocateStock(

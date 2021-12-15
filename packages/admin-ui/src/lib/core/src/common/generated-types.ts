@@ -90,6 +90,7 @@ export type Administrator = Node & {
 };
 
 export type AdministratorFilterParameter = {
+  id?: Maybe<IdOperators>;
   createdAt?: Maybe<DateOperators>;
   updatedAt?: Maybe<DateOperators>;
   firstName?: Maybe<StringOperators>;
@@ -104,10 +105,16 @@ export type AdministratorList = PaginatedList & {
 };
 
 export type AdministratorListOptions = {
+  /** Skips the first n results, for use in pagination */
   skip?: Maybe<Scalars['Int']>;
+  /** Takes n results, for use in pagination */
   take?: Maybe<Scalars['Int']>;
+  /** Specifies which properties to sort the results by */
   sort?: Maybe<AdministratorSortParameter>;
+  /** Allows the results to be filtered */
   filter?: Maybe<AdministratorFilterParameter>;
+  /** Specifies whether multiple "filter" arguments should be combines with a logical AND or OR operation. Defaults to AND. */
+  filterOperator?: Maybe<LogicalOperator>;
 };
 
 export type AdministratorPaymentInput = {
@@ -167,6 +174,7 @@ export type Asset = Node & {
 };
 
 export type AssetFilterParameter = {
+  id?: Maybe<IdOperators>;
   createdAt?: Maybe<DateOperators>;
   updatedAt?: Maybe<DateOperators>;
   name?: Maybe<StringOperators>;
@@ -188,10 +196,16 @@ export type AssetList = PaginatedList & {
 export type AssetListOptions = {
   tags?: Maybe<Array<Scalars['String']>>;
   tagsOperator?: Maybe<LogicalOperator>;
+  /** Skips the first n results, for use in pagination */
   skip?: Maybe<Scalars['Int']>;
+  /** Takes n results, for use in pagination */
   take?: Maybe<Scalars['Int']>;
+  /** Specifies which properties to sort the results by */
   sort?: Maybe<AssetSortParameter>;
+  /** Allows the results to be filtered */
   filter?: Maybe<AssetFilterParameter>;
+  /** Specifies whether multiple "filter" arguments should be combines with a logical AND or OR operation. Defaults to AND. */
+  filterOperator?: Maybe<LogicalOperator>;
 };
 
 export type AssetSortParameter = {
@@ -258,8 +272,11 @@ export type BooleanCustomFieldConfig = CustomField & {
   description?: Maybe<Array<LocalizedString>>;
   readonly?: Maybe<Scalars['Boolean']>;
   internal?: Maybe<Scalars['Boolean']>;
+  nullable?: Maybe<Scalars['Boolean']>;
+  ui?: Maybe<Scalars['JSON']>;
 };
 
+/** Operators for filtering on a Boolean field */
 export type BooleanOperators = {
   eq?: Maybe<Scalars['Boolean']>;
 };
@@ -356,6 +373,7 @@ export type CollectionBreadcrumb = {
 
 export type CollectionFilterParameter = {
   isPrivate?: Maybe<BooleanOperators>;
+  id?: Maybe<IdOperators>;
   createdAt?: Maybe<DateOperators>;
   updatedAt?: Maybe<DateOperators>;
   languageCode?: Maybe<StringOperators>;
@@ -372,10 +390,16 @@ export type CollectionList = PaginatedList & {
 };
 
 export type CollectionListOptions = {
+  /** Skips the first n results, for use in pagination */
   skip?: Maybe<Scalars['Int']>;
+  /** Takes n results, for use in pagination */
   take?: Maybe<Scalars['Int']>;
+  /** Specifies which properties to sort the results by */
   sort?: Maybe<CollectionSortParameter>;
+  /** Allows the results to be filtered */
   filter?: Maybe<CollectionFilterParameter>;
+  /** Specifies whether multiple "filter" arguments should be combines with a logical AND or OR operation. Defaults to AND. */
+  filterOperator?: Maybe<LogicalOperator>;
 };
 
 /**
@@ -472,9 +496,11 @@ export type Country = Node & {
   name: Scalars['String'];
   enabled: Scalars['Boolean'];
   translations: Array<CountryTranslation>;
+  customFields?: Maybe<Scalars['JSON']>;
 };
 
 export type CountryFilterParameter = {
+  id?: Maybe<IdOperators>;
   createdAt?: Maybe<DateOperators>;
   updatedAt?: Maybe<DateOperators>;
   languageCode?: Maybe<StringOperators>;
@@ -490,10 +516,16 @@ export type CountryList = PaginatedList & {
 };
 
 export type CountryListOptions = {
+  /** Skips the first n results, for use in pagination */
   skip?: Maybe<Scalars['Int']>;
+  /** Takes n results, for use in pagination */
   take?: Maybe<Scalars['Int']>;
+  /** Specifies which properties to sort the results by */
   sort?: Maybe<CountrySortParameter>;
+  /** Allows the results to be filtered */
   filter?: Maybe<CountryFilterParameter>;
+  /** Specifies whether multiple "filter" arguments should be combines with a logical AND or OR operation. Defaults to AND. */
+  filterOperator?: Maybe<LogicalOperator>;
 };
 
 export type CountrySortParameter = {
@@ -517,6 +549,7 @@ export type CountryTranslationInput = {
   id?: Maybe<Scalars['ID']>;
   languageCode: LanguageCode;
   name?: Maybe<Scalars['String']>;
+  customFields?: Maybe<Scalars['JSON']>;
 };
 
 export type CreateAddressInput = {
@@ -586,11 +619,13 @@ export type CreateCountryInput = {
   code: Scalars['String'];
   translations: Array<CountryTranslationInput>;
   enabled: Scalars['Boolean'];
+  customFields?: Maybe<Scalars['JSON']>;
 };
 
 export type CreateCustomerGroupInput = {
   name: Scalars['String'];
   customerIds?: Maybe<Array<Scalars['ID']>>;
+  customFields?: Maybe<Scalars['JSON']>;
 };
 
 export type CreateCustomerInput = {
@@ -644,6 +679,7 @@ export type CreatePaymentMethodInput = {
   enabled: Scalars['Boolean'];
   checker?: Maybe<ConfigurableOperationInput>;
   handler: ConfigurableOperationInput;
+  customFields?: Maybe<Scalars['JSON']>;
 };
 
 export type CreateProductInput = {
@@ -701,6 +737,7 @@ export type CreatePromotionInput = {
   perCustomerUsageLimit?: Maybe<Scalars['Int']>;
   conditions: Array<ConfigurableOperationInput>;
   actions: Array<ConfigurableOperationInput>;
+  customFields?: Maybe<Scalars['JSON']>;
 };
 
 export type CreatePromotionResult = Promotion | MissingConditionsError;
@@ -728,6 +765,7 @@ export type CreateTagInput = {
 export type CreateTaxCategoryInput = {
   name: Scalars['String'];
   isDefault?: Maybe<Scalars['Boolean']>;
+  customFields?: Maybe<Scalars['JSON']>;
 };
 
 export type CreateTaxRateInput = {
@@ -737,11 +775,13 @@ export type CreateTaxRateInput = {
   categoryId: Scalars['ID'];
   zoneId: Scalars['ID'];
   customerGroupId?: Maybe<Scalars['ID']>;
+  customFields?: Maybe<Scalars['JSON']>;
 };
 
 export type CreateZoneInput = {
   name: Scalars['String'];
   memberIds?: Maybe<Array<Scalars['ID']>>;
+  customFields?: Maybe<Scalars['JSON']>;
 };
 
 /**
@@ -1097,6 +1137,8 @@ export type CustomField = {
   description?: Maybe<Array<LocalizedString>>;
   readonly?: Maybe<Scalars['Boolean']>;
   internal?: Maybe<Scalars['Boolean']>;
+  nullable?: Maybe<Scalars['Boolean']>;
+  ui?: Maybe<Scalars['JSON']>;
 };
 
 export type CustomFieldConfig = StringCustomFieldConfig | LocaleStringCustomFieldConfig | IntCustomFieldConfig | FloatCustomFieldConfig | BooleanCustomFieldConfig | DateTimeCustomFieldConfig | RelationCustomFieldConfig | TextCustomFieldConfig;
@@ -1108,19 +1150,26 @@ export type CustomFields = {
   Asset: Array<CustomFieldConfig>;
   Channel: Array<CustomFieldConfig>;
   Collection: Array<CustomFieldConfig>;
+  Country: Array<CustomFieldConfig>;
   Customer: Array<CustomFieldConfig>;
+  CustomerGroup: Array<CustomFieldConfig>;
   Facet: Array<CustomFieldConfig>;
   FacetValue: Array<CustomFieldConfig>;
   Fulfillment: Array<CustomFieldConfig>;
   GlobalSettings: Array<CustomFieldConfig>;
   Order: Array<CustomFieldConfig>;
   OrderLine: Array<CustomFieldConfig>;
+  PaymentMethod: Array<CustomFieldConfig>;
   Product: Array<CustomFieldConfig>;
   ProductOption: Array<CustomFieldConfig>;
   ProductOptionGroup: Array<CustomFieldConfig>;
   ProductVariant: Array<CustomFieldConfig>;
-  User: Array<CustomFieldConfig>;
+  Promotion: Array<CustomFieldConfig>;
   ShippingMethod: Array<CustomFieldConfig>;
+  TaxCategory: Array<CustomFieldConfig>;
+  TaxRate: Array<CustomFieldConfig>;
+  User: Array<CustomFieldConfig>;
+  Zone: Array<CustomFieldConfig>;
 };
 
 export type Customer = Node & {
@@ -1152,6 +1201,7 @@ export type CustomerOrdersArgs = {
 };
 
 export type CustomerFilterParameter = {
+  id?: Maybe<IdOperators>;
   createdAt?: Maybe<DateOperators>;
   updatedAt?: Maybe<DateOperators>;
   title?: Maybe<StringOperators>;
@@ -1168,6 +1218,7 @@ export type CustomerGroup = Node & {
   updatedAt: Scalars['DateTime'];
   name: Scalars['String'];
   customers: CustomerList;
+  customFields?: Maybe<Scalars['JSON']>;
 };
 
 
@@ -1176,6 +1227,7 @@ export type CustomerGroupCustomersArgs = {
 };
 
 export type CustomerGroupFilterParameter = {
+  id?: Maybe<IdOperators>;
   createdAt?: Maybe<DateOperators>;
   updatedAt?: Maybe<DateOperators>;
   name?: Maybe<StringOperators>;
@@ -1188,10 +1240,16 @@ export type CustomerGroupList = PaginatedList & {
 };
 
 export type CustomerGroupListOptions = {
+  /** Skips the first n results, for use in pagination */
   skip?: Maybe<Scalars['Int']>;
+  /** Takes n results, for use in pagination */
   take?: Maybe<Scalars['Int']>;
+  /** Specifies which properties to sort the results by */
   sort?: Maybe<CustomerGroupSortParameter>;
+  /** Allows the results to be filtered */
   filter?: Maybe<CustomerGroupFilterParameter>;
+  /** Specifies whether multiple "filter" arguments should be combines with a logical AND or OR operation. Defaults to AND. */
+  filterOperator?: Maybe<LogicalOperator>;
 };
 
 export type CustomerGroupSortParameter = {
@@ -1208,10 +1266,16 @@ export type CustomerList = PaginatedList & {
 };
 
 export type CustomerListOptions = {
+  /** Skips the first n results, for use in pagination */
   skip?: Maybe<Scalars['Int']>;
+  /** Takes n results, for use in pagination */
   take?: Maybe<Scalars['Int']>;
+  /** Specifies which properties to sort the results by */
   sort?: Maybe<CustomerSortParameter>;
+  /** Allows the results to be filtered */
   filter?: Maybe<CustomerFilterParameter>;
+  /** Specifies whether multiple "filter" arguments should be combines with a logical AND or OR operation. Defaults to AND. */
+  filterOperator?: Maybe<LogicalOperator>;
 };
 
 export type CustomerSortParameter = {
@@ -1225,6 +1289,7 @@ export type CustomerSortParameter = {
   emailAddress?: Maybe<SortOrder>;
 };
 
+/** Operators for filtering on a DateTime field */
 export type DateOperators = {
   eq?: Maybe<Scalars['DateTime']>;
   before?: Maybe<Scalars['DateTime']>;
@@ -1251,9 +1316,11 @@ export type DateTimeCustomFieldConfig = CustomField & {
   description?: Maybe<Array<LocalizedString>>;
   readonly?: Maybe<Scalars['Boolean']>;
   internal?: Maybe<Scalars['Boolean']>;
+  nullable?: Maybe<Scalars['Boolean']>;
   min?: Maybe<Scalars['String']>;
   max?: Maybe<Scalars['String']>;
   step?: Maybe<Scalars['Int']>;
+  ui?: Maybe<Scalars['JSON']>;
 };
 
 export type DeleteAssetInput = {
@@ -1362,6 +1429,7 @@ export type Facet = Node & {
 
 export type FacetFilterParameter = {
   isPrivate?: Maybe<BooleanOperators>;
+  id?: Maybe<IdOperators>;
   createdAt?: Maybe<DateOperators>;
   updatedAt?: Maybe<DateOperators>;
   languageCode?: Maybe<StringOperators>;
@@ -1376,10 +1444,16 @@ export type FacetList = PaginatedList & {
 };
 
 export type FacetListOptions = {
+  /** Skips the first n results, for use in pagination */
   skip?: Maybe<Scalars['Int']>;
+  /** Takes n results, for use in pagination */
   take?: Maybe<Scalars['Int']>;
+  /** Specifies which properties to sort the results by */
   sort?: Maybe<FacetSortParameter>;
+  /** Allows the results to be filtered */
   filter?: Maybe<FacetFilterParameter>;
+  /** Specifies whether multiple "filter" arguments should be combines with a logical AND or OR operation. Defaults to AND. */
+  filterOperator?: Maybe<LogicalOperator>;
 };
 
 export type FacetSortParameter = {
@@ -1467,9 +1541,11 @@ export type FloatCustomFieldConfig = CustomField & {
   description?: Maybe<Array<LocalizedString>>;
   readonly?: Maybe<Scalars['Boolean']>;
   internal?: Maybe<Scalars['Boolean']>;
+  nullable?: Maybe<Scalars['Boolean']>;
   min?: Maybe<Scalars['Float']>;
   max?: Maybe<Scalars['Float']>;
   step?: Maybe<Scalars['Float']>;
+  ui?: Maybe<Scalars['JSON']>;
 };
 
 export type FulfillOrderInput = {
@@ -1531,6 +1607,7 @@ export type HistoryEntry = Node & {
 
 export type HistoryEntryFilterParameter = {
   isPublic?: Maybe<BooleanOperators>;
+  id?: Maybe<IdOperators>;
   createdAt?: Maybe<DateOperators>;
   updatedAt?: Maybe<DateOperators>;
   type?: Maybe<StringOperators>;
@@ -1543,10 +1620,16 @@ export type HistoryEntryList = PaginatedList & {
 };
 
 export type HistoryEntryListOptions = {
+  /** Skips the first n results, for use in pagination */
   skip?: Maybe<Scalars['Int']>;
+  /** Takes n results, for use in pagination */
   take?: Maybe<Scalars['Int']>;
+  /** Specifies which properties to sort the results by */
   sort?: Maybe<HistoryEntrySortParameter>;
+  /** Allows the results to be filtered */
   filter?: Maybe<HistoryEntryFilterParameter>;
+  /** Specifies whether multiple "filter" arguments should be combines with a logical AND or OR operation. Defaults to AND. */
+  filterOperator?: Maybe<LogicalOperator>;
 };
 
 export type HistoryEntrySortParameter = {
@@ -1581,6 +1664,14 @@ export enum HistoryEntryType {
   ORDER_COUPON_REMOVED = 'ORDER_COUPON_REMOVED',
   ORDER_MODIFIED = 'ORDER_MODIFIED'
 }
+
+/** Operators for filtering on an ID field */
+export type IdOperators = {
+  eq?: Maybe<Scalars['String']>;
+  notEq?: Maybe<Scalars['String']>;
+  in?: Maybe<Array<Scalars['String']>>;
+  notIn?: Maybe<Array<Scalars['String']>>;
+};
 
 export type ImportInfo = {
   __typename?: 'ImportInfo';
@@ -1620,9 +1711,11 @@ export type IntCustomFieldConfig = CustomField & {
   description?: Maybe<Array<LocalizedString>>;
   readonly?: Maybe<Scalars['Boolean']>;
   internal?: Maybe<Scalars['Boolean']>;
+  nullable?: Maybe<Scalars['Boolean']>;
   min?: Maybe<Scalars['Int']>;
   max?: Maybe<Scalars['Int']>;
   step?: Maybe<Scalars['Int']>;
+  ui?: Maybe<Scalars['JSON']>;
 };
 
 /** Returned if the user authentication credentials are not valid */
@@ -1662,9 +1755,18 @@ export type Job = Node & {
   error?: Maybe<Scalars['JSON']>;
   isSettled: Scalars['Boolean'];
   duration: Scalars['Int'];
+  retries: Scalars['Int'];
+  attempts: Scalars['Int'];
+};
+
+export type JobBufferSize = {
+  __typename?: 'JobBufferSize';
+  bufferId: Scalars['String'];
+  size: Scalars['Int'];
 };
 
 export type JobFilterParameter = {
+  id?: Maybe<IdOperators>;
   createdAt?: Maybe<DateOperators>;
   startedAt?: Maybe<DateOperators>;
   settledAt?: Maybe<DateOperators>;
@@ -1673,6 +1775,8 @@ export type JobFilterParameter = {
   progress?: Maybe<NumberOperators>;
   isSettled?: Maybe<BooleanOperators>;
   duration?: Maybe<NumberOperators>;
+  retries?: Maybe<NumberOperators>;
+  attempts?: Maybe<NumberOperators>;
 };
 
 export type JobList = PaginatedList & {
@@ -1682,10 +1786,16 @@ export type JobList = PaginatedList & {
 };
 
 export type JobListOptions = {
+  /** Skips the first n results, for use in pagination */
   skip?: Maybe<Scalars['Int']>;
+  /** Takes n results, for use in pagination */
   take?: Maybe<Scalars['Int']>;
+  /** Specifies which properties to sort the results by */
   sort?: Maybe<JobSortParameter>;
+  /** Allows the results to be filtered */
   filter?: Maybe<JobFilterParameter>;
+  /** Specifies whether multiple "filter" arguments should be combines with a logical AND or OR operation. Defaults to AND. */
+  filterOperator?: Maybe<LogicalOperator>;
 };
 
 export type JobQueue = {
@@ -1702,6 +1812,8 @@ export type JobSortParameter = {
   queueName?: Maybe<SortOrder>;
   progress?: Maybe<SortOrder>;
   duration?: Maybe<SortOrder>;
+  retries?: Maybe<SortOrder>;
+  attempts?: Maybe<SortOrder>;
 };
 
 /**
@@ -2063,7 +2175,9 @@ export type LocaleStringCustomFieldConfig = CustomField & {
   description?: Maybe<Array<LocalizedString>>;
   readonly?: Maybe<Scalars['Boolean']>;
   internal?: Maybe<Scalars['Boolean']>;
+  nullable?: Maybe<Scalars['Boolean']>;
   pattern?: Maybe<Scalars['String']>;
+  ui?: Maybe<Scalars['JSON']>;
 };
 
 export type LocalizedString = {
@@ -2148,7 +2262,10 @@ export type Mutation = {
   addCustomersToGroup: CustomerGroup;
   addFulfillmentToOrder: AddFulfillmentToOrderResult;
   /**
-   * Used to manually create a new Payment against an Order. This is used when a completed Order
+   * Used to manually create a new Payment against an Order.
+   * This can be used by an Administrator when an Order is in the ArrangingPayment state.
+   *
+   * It is also used when a completed Order
    * has been modified (using `modifyOrder`) and the price has increased. The extra payment
    * can then be manually arranged by the administrator, and the details used to create a new
    * Payment.
@@ -2260,6 +2377,7 @@ export type Mutation = {
   deleteTaxRate: DeletionResponse;
   /** Delete a Zone */
   deleteZone: DeletionResponse;
+  flushBufferedJobs: Success;
   importProducts?: Maybe<ImportInfo>;
   /** Authenticates the user using the native authentication strategy. This mutation is an alias for `authenticate({ native: { ... }})` */
   login: NativeAuthenticationResult;
@@ -2285,16 +2403,19 @@ export type Mutation = {
   removeProductsFromChannel: Array<Product>;
   /** Removes Promotions from the specified Channel */
   removePromotionsFromChannel: Array<Promotion>;
-  /** Remove all settled jobs in the given queues olfer than the given date. Returns the number of jobs deleted. */
+  /** Remove all settled jobs in the given queues older than the given date. Returns the number of jobs deleted. */
   removeSettledJobs: Scalars['Int'];
   requestCompleted: Scalars['Int'];
   requestStarted: Scalars['Int'];
+  runPendingSearchIndexUpdates: Success;
   setActiveChannel: UserStatus;
   setAsLoggedIn: UserStatus;
   setAsLoggedOut: UserStatus;
   setContentLanguage: LanguageCode;
+  setDisplayUiExtensionPoints: Scalars['Boolean'];
   setOrderCustomFields?: Maybe<Order>;
   setUiLanguage: LanguageCode;
+  setUiLocale?: Maybe<Scalars['String']>;
   setUiTheme: Scalars['String'];
   settlePayment: SettlePaymentResult;
   settleRefund: SettleRefundResult;
@@ -2663,6 +2784,11 @@ export type MutationDeleteZoneArgs = {
 };
 
 
+export type MutationFlushBufferedJobsArgs = {
+  bufferIds?: Maybe<Array<Scalars['String']>>;
+};
+
+
 export type MutationImportProductsArgs = {
   csvFile: Scalars['Upload'];
 };
@@ -2744,6 +2870,11 @@ export type MutationSetContentLanguageArgs = {
 };
 
 
+export type MutationSetDisplayUiExtensionPointsArgs = {
+  display: Scalars['Boolean'];
+};
+
+
 export type MutationSetOrderCustomFieldsArgs = {
   input: UpdateOrderInput;
 };
@@ -2751,6 +2882,11 @@ export type MutationSetOrderCustomFieldsArgs = {
 
 export type MutationSetUiLanguageArgs = {
   languageCode: LanguageCode;
+};
+
+
+export type MutationSetUiLocaleArgs = {
+  locale?: Maybe<Scalars['String']>;
 };
 
 
@@ -2965,6 +3101,7 @@ export type NothingToRefundError = ErrorResult & {
   message: Scalars['String'];
 };
 
+/** Operators for filtering on a Int or Float field */
 export type NumberOperators = {
   eq?: Maybe<Scalars['Float']>;
   lt?: Maybe<Scalars['Float']>;
@@ -3060,6 +3197,7 @@ export type OrderAddress = {
 
 export type OrderFilterParameter = {
   customerLastName?: Maybe<StringOperators>;
+  id?: Maybe<IdOperators>;
   createdAt?: Maybe<DateOperators>;
   updatedAt?: Maybe<DateOperators>;
   orderPlacedAt?: Maybe<DateOperators>;
@@ -3098,7 +3236,7 @@ export type OrderItem = Node & {
   /** The price of a single unit including discounts and tax */
   discountedUnitPriceWithTax: Scalars['Int'];
   /**
-   * The actual unit price, taking into account both item discounts _and_ prorated (proportially-distributed)
+   * The actual unit price, taking into account both item discounts _and_ prorated (proportionally-distributed)
    * Order-level discounts. This value is the true economic value of the OrderItem, and is used in tax
    * and refund calculations.
    */
@@ -3148,7 +3286,7 @@ export type OrderLine = Node & {
   /** The price of a single unit including discounts and tax */
   discountedUnitPriceWithTax: Scalars['Int'];
   /**
-   * The actual unit price, taking into account both item discounts _and_ prorated (proportially-distributed)
+   * The actual unit price, taking into account both item discounts _and_ prorated (proportionally-distributed)
    * Order-level discounts. This value is the true economic value of the OrderItem, and is used in tax
    * and refund calculations.
    */
@@ -3160,14 +3298,14 @@ export type OrderLine = Node & {
   taxRate: Scalars['Float'];
   /** The total price of the line excluding tax and discounts. */
   linePrice: Scalars['Int'];
-  /** The total price of the line including tax bit excluding discounts. */
+  /** The total price of the line including tax but excluding discounts. */
   linePriceWithTax: Scalars['Int'];
   /** The price of the line including discounts, excluding tax */
   discountedLinePrice: Scalars['Int'];
   /** The price of the line including discounts and tax */
   discountedLinePriceWithTax: Scalars['Int'];
   /**
-   * The actual line price, taking into account both item discounts _and_ prorated (proportially-distributed)
+   * The actual line price, taking into account both item discounts _and_ prorated (proportionally-distributed)
    * Order-level discounts. This value is the true economic value of the OrderLine, and is used in tax
    * and refund calculations.
    */
@@ -3194,10 +3332,16 @@ export type OrderList = PaginatedList & {
 };
 
 export type OrderListOptions = {
+  /** Skips the first n results, for use in pagination */
   skip?: Maybe<Scalars['Int']>;
+  /** Takes n results, for use in pagination */
   take?: Maybe<Scalars['Int']>;
+  /** Specifies which properties to sort the results by */
   sort?: Maybe<OrderSortParameter>;
+  /** Allows the results to be filtered */
   filter?: Maybe<OrderFilterParameter>;
+  /** Specifies whether multiple "filter" arguments should be combines with a logical AND or OR operation. Defaults to AND. */
+  filterOperator?: Maybe<LogicalOperator>;
 };
 
 export type OrderModification = Node & {
@@ -3301,9 +3445,11 @@ export type PaymentMethod = Node & {
   enabled: Scalars['Boolean'];
   checker?: Maybe<ConfigurableOperation>;
   handler: ConfigurableOperation;
+  customFields?: Maybe<Scalars['JSON']>;
 };
 
 export type PaymentMethodFilterParameter = {
+  id?: Maybe<IdOperators>;
   createdAt?: Maybe<DateOperators>;
   updatedAt?: Maybe<DateOperators>;
   name?: Maybe<StringOperators>;
@@ -3319,10 +3465,16 @@ export type PaymentMethodList = PaginatedList & {
 };
 
 export type PaymentMethodListOptions = {
+  /** Skips the first n results, for use in pagination */
   skip?: Maybe<Scalars['Int']>;
+  /** Takes n results, for use in pagination */
   take?: Maybe<Scalars['Int']>;
+  /** Specifies which properties to sort the results by */
   sort?: Maybe<PaymentMethodSortParameter>;
+  /** Allows the results to be filtered */
   filter?: Maybe<PaymentMethodFilterParameter>;
+  /** Specifies whether multiple "filter" arguments should be combines with a logical AND or OR operation. Defaults to AND. */
+  filterOperator?: Maybe<LogicalOperator>;
 };
 
 /**
@@ -3343,6 +3495,7 @@ export type PaymentMethodQuote = {
   description: Scalars['String'];
   isEligible: Scalars['Boolean'];
   eligibilityMessage?: Maybe<Scalars['String']>;
+  customFields?: Maybe<Scalars['JSON']>;
 };
 
 export type PaymentMethodSortParameter = {
@@ -3579,7 +3732,10 @@ export type Product = Node & {
   description: Scalars['String'];
   featuredAsset?: Maybe<Asset>;
   assets: Array<Asset>;
+  /** Returns all ProductVariants */
   variants: Array<ProductVariant>;
+  /** Returns a paginated, sortable, filterable list of ProductVariants */
+  variantList: ProductVariantList;
   optionGroups: Array<ProductOptionGroup>;
   facetValues: Array<FacetValue>;
   translations: Array<ProductTranslation>;
@@ -3587,8 +3743,14 @@ export type Product = Node & {
   customFields?: Maybe<Scalars['JSON']>;
 };
 
+
+export type ProductVariantListArgs = {
+  options?: Maybe<ProductVariantListOptions>;
+};
+
 export type ProductFilterParameter = {
   enabled?: Maybe<BooleanOperators>;
+  id?: Maybe<IdOperators>;
   createdAt?: Maybe<DateOperators>;
   updatedAt?: Maybe<DateOperators>;
   languageCode?: Maybe<StringOperators>;
@@ -3604,10 +3766,16 @@ export type ProductList = PaginatedList & {
 };
 
 export type ProductListOptions = {
+  /** Skips the first n results, for use in pagination */
   skip?: Maybe<Scalars['Int']>;
+  /** Takes n results, for use in pagination */
   take?: Maybe<Scalars['Int']>;
+  /** Specifies which properties to sort the results by */
   sort?: Maybe<ProductSortParameter>;
+  /** Allows the results to be filtered */
   filter?: Maybe<ProductFilterParameter>;
+  /** Specifies whether multiple "filter" arguments should be combines with a logical AND or OR operation. Defaults to AND. */
+  filterOperator?: Maybe<LogicalOperator>;
 };
 
 export type ProductOption = Node & {
@@ -3750,6 +3918,8 @@ export type ProductVariantFilterParameter = {
   stockAllocated?: Maybe<NumberOperators>;
   outOfStockThreshold?: Maybe<NumberOperators>;
   useGlobalOutOfStockThreshold?: Maybe<BooleanOperators>;
+  id?: Maybe<IdOperators>;
+  productId?: Maybe<IdOperators>;
   createdAt?: Maybe<DateOperators>;
   updatedAt?: Maybe<DateOperators>;
   languageCode?: Maybe<StringOperators>;
@@ -3768,10 +3938,16 @@ export type ProductVariantList = PaginatedList & {
 };
 
 export type ProductVariantListOptions = {
+  /** Skips the first n results, for use in pagination */
   skip?: Maybe<Scalars['Int']>;
+  /** Takes n results, for use in pagination */
   take?: Maybe<Scalars['Int']>;
+  /** Specifies which properties to sort the results by */
   sort?: Maybe<ProductVariantSortParameter>;
+  /** Allows the results to be filtered */
   filter?: Maybe<ProductVariantFilterParameter>;
+  /** Specifies whether multiple "filter" arguments should be combines with a logical AND or OR operation. Defaults to AND. */
+  filterOperator?: Maybe<LogicalOperator>;
 };
 
 export type ProductVariantSortParameter = {
@@ -3818,9 +3994,11 @@ export type Promotion = Node & {
   enabled: Scalars['Boolean'];
   conditions: Array<ConfigurableOperation>;
   actions: Array<ConfigurableOperation>;
+  customFields?: Maybe<Scalars['JSON']>;
 };
 
 export type PromotionFilterParameter = {
+  id?: Maybe<IdOperators>;
   createdAt?: Maybe<DateOperators>;
   updatedAt?: Maybe<DateOperators>;
   startsAt?: Maybe<DateOperators>;
@@ -3838,10 +4016,16 @@ export type PromotionList = PaginatedList & {
 };
 
 export type PromotionListOptions = {
+  /** Skips the first n results, for use in pagination */
   skip?: Maybe<Scalars['Int']>;
+  /** Takes n results, for use in pagination */
   take?: Maybe<Scalars['Int']>;
+  /** Specifies which properties to sort the results by */
   sort?: Maybe<PromotionSortParameter>;
+  /** Allows the results to be filtered */
   filter?: Maybe<PromotionFilterParameter>;
+  /** Specifies whether multiple "filter" arguments should be combines with a logical AND or OR operation. Defaults to AND. */
+  filterOperator?: Maybe<LogicalOperator>;
 };
 
 export type PromotionSortParameter = {
@@ -3889,6 +4073,7 @@ export type Query = {
   fulfillmentHandlers: Array<ConfigurableOperationDefinition>;
   globalSettings: GlobalSettings;
   job?: Maybe<Job>;
+  jobBufferSize: Array<JobBufferSize>;
   jobQueues: Array<JobQueue>;
   jobs: JobList;
   jobsById: Array<Job>;
@@ -3900,6 +4085,7 @@ export type Query = {
   paymentMethodEligibilityCheckers: Array<ConfigurableOperationDefinition>;
   paymentMethodHandlers: Array<ConfigurableOperationDefinition>;
   paymentMethods: PaymentMethodList;
+  pendingSearchIndexUpdates: Scalars['Int'];
   /** Get a Product either by id or slug. If neither id nor slug is speicified, an error will result. */
   product?: Maybe<Product>;
   productOptionGroup?: Maybe<ProductOptionGroup>;
@@ -4014,6 +4200,11 @@ export type QueryFacetsArgs = {
 
 export type QueryJobArgs = {
   jobId: Scalars['ID'];
+};
+
+
+export type QueryJobBufferSizeArgs = {
+  bufferIds?: Maybe<Array<Scalars['String']>>;
 };
 
 
@@ -4218,8 +4409,10 @@ export type RelationCustomFieldConfig = CustomField & {
   description?: Maybe<Array<LocalizedString>>;
   readonly?: Maybe<Scalars['Boolean']>;
   internal?: Maybe<Scalars['Boolean']>;
+  nullable?: Maybe<Scalars['Boolean']>;
   entity: Scalars['String'];
   scalarFields: Array<Scalars['String']>;
+  ui?: Maybe<Scalars['JSON']>;
 };
 
 export type Release = Node & StockMovement & {
@@ -4273,6 +4466,7 @@ export type Role = Node & {
 };
 
 export type RoleFilterParameter = {
+  id?: Maybe<IdOperators>;
   createdAt?: Maybe<DateOperators>;
   updatedAt?: Maybe<DateOperators>;
   code?: Maybe<StringOperators>;
@@ -4286,10 +4480,16 @@ export type RoleList = PaginatedList & {
 };
 
 export type RoleListOptions = {
+  /** Skips the first n results, for use in pagination */
   skip?: Maybe<Scalars['Int']>;
+  /** Takes n results, for use in pagination */
   take?: Maybe<Scalars['Int']>;
+  /** Specifies which properties to sort the results by */
   sort?: Maybe<RoleSortParameter>;
+  /** Allows the results to be filtered */
   filter?: Maybe<RoleFilterParameter>;
+  /** Specifies whether multiple "filter" arguments should be combines with a logical AND or OR operation. Defaults to AND. */
+  filterOperator?: Maybe<LogicalOperator>;
 };
 
 export type RoleSortParameter = {
@@ -4428,6 +4628,7 @@ export type ShippingMethod = Node & {
 };
 
 export type ShippingMethodFilterParameter = {
+  id?: Maybe<IdOperators>;
   createdAt?: Maybe<DateOperators>;
   updatedAt?: Maybe<DateOperators>;
   code?: Maybe<StringOperators>;
@@ -4443,10 +4644,16 @@ export type ShippingMethodList = PaginatedList & {
 };
 
 export type ShippingMethodListOptions = {
+  /** Skips the first n results, for use in pagination */
   skip?: Maybe<Scalars['Int']>;
+  /** Takes n results, for use in pagination */
   take?: Maybe<Scalars['Int']>;
+  /** Specifies which properties to sort the results by */
   sort?: Maybe<ShippingMethodSortParameter>;
+  /** Allows the results to be filtered */
   filter?: Maybe<ShippingMethodFilterParameter>;
+  /** Specifies whether multiple "filter" arguments should be combines with a logical AND or OR operation. Defaults to AND. */
+  filterOperator?: Maybe<LogicalOperator>;
 };
 
 export type ShippingMethodQuote = {
@@ -4459,6 +4666,7 @@ export type ShippingMethodQuote = {
   description: Scalars['String'];
   /** Any optional metadata returned by the ShippingCalculator in the ShippingCalculationResult */
   metadata?: Maybe<Scalars['JSON']>;
+  customFields?: Maybe<Scalars['JSON']>;
 };
 
 export type ShippingMethodSortParameter = {
@@ -4552,8 +4760,10 @@ export type StringCustomFieldConfig = CustomField & {
   description?: Maybe<Array<LocalizedString>>;
   readonly?: Maybe<Scalars['Boolean']>;
   internal?: Maybe<Scalars['Boolean']>;
+  nullable?: Maybe<Scalars['Boolean']>;
   pattern?: Maybe<Scalars['String']>;
   options?: Maybe<Array<StringFieldOption>>;
+  ui?: Maybe<Scalars['JSON']>;
 };
 
 export type StringFieldOption = {
@@ -4562,6 +4772,7 @@ export type StringFieldOption = {
   label?: Maybe<Array<LocalizedString>>;
 };
 
+/** Operators for filtering on a String field */
 export type StringOperators = {
   eq?: Maybe<Scalars['String']>;
   notEq?: Maybe<Scalars['String']>;
@@ -4609,6 +4820,7 @@ export type Tag = Node & {
 };
 
 export type TagFilterParameter = {
+  id?: Maybe<IdOperators>;
   createdAt?: Maybe<DateOperators>;
   updatedAt?: Maybe<DateOperators>;
   value?: Maybe<StringOperators>;
@@ -4621,10 +4833,16 @@ export type TagList = PaginatedList & {
 };
 
 export type TagListOptions = {
+  /** Skips the first n results, for use in pagination */
   skip?: Maybe<Scalars['Int']>;
+  /** Takes n results, for use in pagination */
   take?: Maybe<Scalars['Int']>;
+  /** Specifies which properties to sort the results by */
   sort?: Maybe<TagSortParameter>;
+  /** Allows the results to be filtered */
   filter?: Maybe<TagFilterParameter>;
+  /** Specifies whether multiple "filter" arguments should be combines with a logical AND or OR operation. Defaults to AND. */
+  filterOperator?: Maybe<LogicalOperator>;
 };
 
 export type TagSortParameter = {
@@ -4641,6 +4859,7 @@ export type TaxCategory = Node & {
   updatedAt: Scalars['DateTime'];
   name: Scalars['String'];
   isDefault: Scalars['Boolean'];
+  customFields?: Maybe<Scalars['JSON']>;
 };
 
 export type TaxLine = {
@@ -4660,9 +4879,11 @@ export type TaxRate = Node & {
   category: TaxCategory;
   zone: Zone;
   customerGroup?: Maybe<CustomerGroup>;
+  customFields?: Maybe<Scalars['JSON']>;
 };
 
 export type TaxRateFilterParameter = {
+  id?: Maybe<IdOperators>;
   createdAt?: Maybe<DateOperators>;
   updatedAt?: Maybe<DateOperators>;
   name?: Maybe<StringOperators>;
@@ -4677,10 +4898,16 @@ export type TaxRateList = PaginatedList & {
 };
 
 export type TaxRateListOptions = {
+  /** Skips the first n results, for use in pagination */
   skip?: Maybe<Scalars['Int']>;
+  /** Takes n results, for use in pagination */
   take?: Maybe<Scalars['Int']>;
+  /** Specifies which properties to sort the results by */
   sort?: Maybe<TaxRateSortParameter>;
+  /** Allows the results to be filtered */
   filter?: Maybe<TaxRateFilterParameter>;
+  /** Specifies whether multiple "filter" arguments should be combines with a logical AND or OR operation. Defaults to AND. */
+  filterOperator?: Maybe<LogicalOperator>;
 };
 
 export type TaxRateSortParameter = {
@@ -4730,6 +4957,8 @@ export type TextCustomFieldConfig = CustomField & {
   description?: Maybe<Array<LocalizedString>>;
   readonly?: Maybe<Scalars['Boolean']>;
   internal?: Maybe<Scalars['Boolean']>;
+  nullable?: Maybe<Scalars['Boolean']>;
+  ui?: Maybe<Scalars['JSON']>;
 };
 
 export type TransitionFulfillmentToStateResult = Fulfillment | FulfillmentStateTransitionError;
@@ -4741,8 +4970,10 @@ export type TransitionPaymentToStateResult = Payment | PaymentStateTransitionErr
 export type UiState = {
   __typename?: 'UiState';
   language: LanguageCode;
+  locale?: Maybe<Scalars['String']>;
   contentLanguage: LanguageCode;
   theme: Scalars['String'];
+  displayUiExtensionPoints: Scalars['Boolean'];
 };
 
 export type UpdateActiveAdministratorInput = {
@@ -4826,11 +5057,13 @@ export type UpdateCountryInput = {
   code?: Maybe<Scalars['String']>;
   translations?: Maybe<Array<CountryTranslationInput>>;
   enabled?: Maybe<Scalars['Boolean']>;
+  customFields?: Maybe<Scalars['JSON']>;
 };
 
 export type UpdateCustomerGroupInput = {
   id: Scalars['ID'];
   name?: Maybe<Scalars['String']>;
+  customFields?: Maybe<Scalars['JSON']>;
 };
 
 export type UpdateCustomerInput = {
@@ -4905,6 +5138,7 @@ export type UpdatePaymentMethodInput = {
   enabled?: Maybe<Scalars['Boolean']>;
   checker?: Maybe<ConfigurableOperationInput>;
   handler?: Maybe<ConfigurableOperationInput>;
+  customFields?: Maybe<Scalars['JSON']>;
 };
 
 export type UpdateProductInput = {
@@ -4958,6 +5192,7 @@ export type UpdatePromotionInput = {
   perCustomerUsageLimit?: Maybe<Scalars['Int']>;
   conditions?: Maybe<Array<ConfigurableOperationInput>>;
   actions?: Maybe<Array<ConfigurableOperationInput>>;
+  customFields?: Maybe<Scalars['JSON']>;
 };
 
 export type UpdatePromotionResult = Promotion | MissingConditionsError;
@@ -4989,6 +5224,7 @@ export type UpdateTaxCategoryInput = {
   id: Scalars['ID'];
   name?: Maybe<Scalars['String']>;
   isDefault?: Maybe<Scalars['Boolean']>;
+  customFields?: Maybe<Scalars['JSON']>;
 };
 
 export type UpdateTaxRateInput = {
@@ -4999,11 +5235,13 @@ export type UpdateTaxRateInput = {
   categoryId?: Maybe<Scalars['ID']>;
   zoneId?: Maybe<Scalars['ID']>;
   customerGroupId?: Maybe<Scalars['ID']>;
+  customFields?: Maybe<Scalars['JSON']>;
 };
 
 export type UpdateZoneInput = {
   id: Scalars['ID'];
   name?: Maybe<Scalars['String']>;
+  customFields?: Maybe<Scalars['JSON']>;
 };
 
 
@@ -5044,6 +5282,7 @@ export type Zone = Node & {
   updatedAt: Scalars['DateTime'];
   name: Scalars['String'];
   members: Array<Country>;
+  customFields?: Maybe<Scalars['JSON']>;
 };
 
 export type RoleFragment = (
@@ -5287,10 +5526,25 @@ export type SetAsLoggedOutMutation = { setAsLoggedOut: (
 
 export type SetUiLanguageMutationVariables = Exact<{
   languageCode: LanguageCode;
+  locale?: Maybe<Scalars['String']>;
 }>;
 
 
-export type SetUiLanguageMutation = Pick<Mutation, 'setUiLanguage'>;
+export type SetUiLanguageMutation = Pick<Mutation, 'setUiLanguage' | 'setUiLocale'>;
+
+export type SetUiLocaleMutationVariables = Exact<{
+  locale?: Maybe<Scalars['String']>;
+}>;
+
+
+export type SetUiLocaleMutation = Pick<Mutation, 'setUiLocale'>;
+
+export type SetDisplayUiExtensionPointsMutationVariables = Exact<{
+  display: Scalars['Boolean'];
+}>;
+
+
+export type SetDisplayUiExtensionPointsMutation = Pick<Mutation, 'setDisplayUiExtensionPoints'>;
 
 export type SetContentLanguageMutationVariables = Exact<{
   languageCode: LanguageCode;
@@ -5327,7 +5581,7 @@ export type GetUiStateQueryVariables = Exact<{ [key: string]: never; }>;
 
 export type GetUiStateQuery = { uiState: (
     { __typename?: 'UiState' }
-    & Pick<UiState, 'language' | 'contentLanguage' | 'theme'>
+    & Pick<UiState, 'language' | 'locale' | 'contentLanguage' | 'theme' | 'displayUiExtensionPoints'>
   ) };
 
 export type GetClientStateQueryVariables = Exact<{ [key: string]: never; }>;
@@ -5341,7 +5595,7 @@ export type GetClientStateQuery = { networkStatus: (
     & UserStatusFragment
   ), uiState: (
     { __typename?: 'UiState' }
-    & Pick<UiState, 'language' | 'contentLanguage' | 'theme'>
+    & Pick<UiState, 'language' | 'locale' | 'contentLanguage' | 'theme' | 'displayUiExtensionPoints'>
   ) };
 
 export type SetActiveChannelMutationVariables = Exact<{
@@ -5507,6 +5761,11 @@ export type CustomerFragment = (
   )>> }
 );
 
+export type CustomerGroupFragment = (
+  { __typename?: 'CustomerGroup' }
+  & Pick<CustomerGroup, 'id' | 'createdAt' | 'updatedAt' | 'name'>
+);
+
 export type GetCustomerListQueryVariables = Exact<{
   options?: Maybe<CustomerListOptions>;
 }>;
@@ -5612,7 +5871,7 @@ export type CreateCustomerGroupMutationVariables = Exact<{
 
 export type CreateCustomerGroupMutation = { createCustomerGroup: (
     { __typename?: 'CustomerGroup' }
-    & Pick<CustomerGroup, 'id' | 'createdAt' | 'updatedAt' | 'name'>
+    & CustomerGroupFragment
   ) };
 
 export type UpdateCustomerGroupMutationVariables = Exact<{
@@ -5622,7 +5881,7 @@ export type UpdateCustomerGroupMutationVariables = Exact<{
 
 export type UpdateCustomerGroupMutation = { updateCustomerGroup: (
     { __typename?: 'CustomerGroup' }
-    & Pick<CustomerGroup, 'id' | 'createdAt' | 'updatedAt' | 'name'>
+    & CustomerGroupFragment
   ) };
 
 export type DeleteCustomerGroupMutationVariables = Exact<{
@@ -5645,7 +5904,7 @@ export type GetCustomerGroupsQuery = { customerGroups: (
     & Pick<CustomerGroupList, 'totalItems'>
     & { items: Array<(
       { __typename?: 'CustomerGroup' }
-      & Pick<CustomerGroup, 'id' | 'createdAt' | 'updatedAt' | 'name'>
+      & CustomerGroupFragment
     )> }
   ) };
 
@@ -5657,7 +5916,6 @@ export type GetCustomerGroupWithCustomersQueryVariables = Exact<{
 
 export type GetCustomerGroupWithCustomersQuery = { customerGroup?: Maybe<(
     { __typename?: 'CustomerGroup' }
-    & Pick<CustomerGroup, 'id' | 'createdAt' | 'updatedAt' | 'name'>
     & { customers: (
       { __typename?: 'CustomerList' }
       & Pick<CustomerList, 'totalItems'>
@@ -5666,6 +5924,7 @@ export type GetCustomerGroupWithCustomersQuery = { customerGroup?: Maybe<(
         & Pick<Customer, 'id' | 'createdAt' | 'updatedAt' | 'emailAddress' | 'firstName' | 'lastName'>
       )> }
     ) }
+    & CustomerGroupFragment
   )> };
 
 export type AddCustomersToGroupMutationVariables = Exact<{
@@ -5676,7 +5935,7 @@ export type AddCustomersToGroupMutationVariables = Exact<{
 
 export type AddCustomersToGroupMutation = { addCustomersToGroup: (
     { __typename?: 'CustomerGroup' }
-    & Pick<CustomerGroup, 'id' | 'createdAt' | 'updatedAt' | 'name'>
+    & CustomerGroupFragment
   ) };
 
 export type RemoveCustomersFromGroupMutationVariables = Exact<{
@@ -5687,7 +5946,7 @@ export type RemoveCustomersFromGroupMutationVariables = Exact<{
 
 export type RemoveCustomersFromGroupMutation = { removeCustomersFromGroup: (
     { __typename?: 'CustomerGroup' }
-    & Pick<CustomerGroup, 'id' | 'createdAt' | 'updatedAt' | 'name'>
+    & CustomerGroupFragment
   ) };
 
 export type GetCustomerHistoryQueryVariables = Exact<{
@@ -6361,7 +6620,7 @@ export type ProductVariantFragment = (
   )> }
 );
 
-export type ProductWithVariantsFragment = (
+export type ProductDetailFragment = (
   { __typename?: 'Product' }
   & Pick<Product, 'id' | 'createdAt' | 'updatedAt' | 'enabled' | 'languageCode' | 'name' | 'slug' | 'description'>
   & { featuredAsset?: Maybe<(
@@ -6376,9 +6635,6 @@ export type ProductWithVariantsFragment = (
   )>, optionGroups: Array<(
     { __typename?: 'ProductOptionGroup' }
     & ProductOptionGroupFragment
-  )>, variants: Array<(
-    { __typename?: 'ProductVariant' }
-    & ProductVariantFragment
   )>, facetValues: Array<(
     { __typename?: 'FacetValue' }
     & Pick<FacetValue, 'id' | 'code' | 'name'>
@@ -6410,22 +6666,40 @@ export type ProductOptionGroupWithOptionsFragment = (
 
 export type UpdateProductMutationVariables = Exact<{
   input: UpdateProductInput;
+  variantListOptions?: Maybe<ProductVariantListOptions>;
 }>;
 
 
 export type UpdateProductMutation = { updateProduct: (
     { __typename?: 'Product' }
-    & ProductWithVariantsFragment
+    & { variantList: (
+      { __typename?: 'ProductVariantList' }
+      & Pick<ProductVariantList, 'totalItems'>
+      & { items: Array<(
+        { __typename?: 'ProductVariant' }
+        & ProductVariantFragment
+      )> }
+    ) }
+    & ProductDetailFragment
   ) };
 
 export type CreateProductMutationVariables = Exact<{
   input: CreateProductInput;
+  variantListOptions?: Maybe<ProductVariantListOptions>;
 }>;
 
 
 export type CreateProductMutation = { createProduct: (
     { __typename?: 'Product' }
-    & ProductWithVariantsFragment
+    & { variantList: (
+      { __typename?: 'ProductVariantList' }
+      & Pick<ProductVariantList, 'totalItems'>
+      & { items: Array<(
+        { __typename?: 'ProductVariant' }
+        & ProductVariantFragment
+      )> }
+    ) }
+    & ProductDetailFragment
   ) };
 
 export type DeleteProductMutationVariables = Exact<{
@@ -6531,12 +6805,21 @@ export type RemoveOptionGroupFromProductMutation = { removeOptionGroupFromProduc
 
 export type GetProductWithVariantsQueryVariables = Exact<{
   id: Scalars['ID'];
+  variantListOptions?: Maybe<ProductVariantListOptions>;
 }>;
 
 
 export type GetProductWithVariantsQuery = { product?: Maybe<(
     { __typename?: 'Product' }
-    & ProductWithVariantsFragment
+    & { variantList: (
+      { __typename?: 'ProductVariantList' }
+      & Pick<ProductVariantList, 'totalItems'>
+      & { items: Array<(
+        { __typename?: 'ProductVariant' }
+        & ProductVariantFragment
+      )> }
+    ) }
+    & ProductDetailFragment
   )> };
 
 export type GetProductSimpleQueryVariables = Exact<{
@@ -6866,12 +7149,13 @@ export type GetProductVariantQuery = { productVariant?: Maybe<(
     ) }
   )> };
 
-export type GetProductVariantListQueryVariables = Exact<{
+export type GetProductVariantListSimpleQueryVariables = Exact<{
   options: ProductVariantListOptions;
+  productId?: Maybe<Scalars['ID']>;
 }>;
 
 
-export type GetProductVariantListQuery = { productVariants: (
+export type GetProductVariantListSimpleQuery = { productVariants: (
     { __typename?: 'ProductVariantList' }
     & Pick<ProductVariantList, 'totalItems'>
     & { items: Array<(
@@ -6896,6 +7180,21 @@ export type GetProductVariantListQuery = { productVariants: (
           )> }
         )> }
       ) }
+    )> }
+  ) };
+
+export type GetProductVariantListQueryVariables = Exact<{
+  options: ProductVariantListOptions;
+  productId?: Maybe<Scalars['ID']>;
+}>;
+
+
+export type GetProductVariantListQuery = { productVariants: (
+    { __typename?: 'ProductVariantList' }
+    & Pick<ProductVariantList, 'totalItems'>
+    & { items: Array<(
+      { __typename?: 'ProductVariant' }
+      & ProductVariantFragment
     )> }
   ) };
 
@@ -7109,7 +7408,7 @@ export type DeleteCountryMutation = { deleteCountry: (
 
 export type ZoneFragment = (
   { __typename?: 'Zone' }
-  & Pick<Zone, 'id' | 'name'>
+  & Pick<Zone, 'id' | 'createdAt' | 'updatedAt' | 'name'>
   & { members: Array<(
     { __typename?: 'Country' }
     & CountryFragment
@@ -7121,11 +7420,11 @@ export type GetZonesQueryVariables = Exact<{ [key: string]: never; }>;
 
 export type GetZonesQuery = { zones: Array<(
     { __typename?: 'Zone' }
-    & Pick<Zone, 'id' | 'createdAt' | 'updatedAt' | 'name'>
     & { members: Array<(
       { __typename?: 'Country' }
       & Pick<Country, 'createdAt' | 'updatedAt' | 'id' | 'name' | 'code' | 'enabled'>
     )> }
+    & ZoneFragment
   )> };
 
 export type GetZoneQueryVariables = Exact<{
@@ -7269,6 +7568,27 @@ export type GetTaxRateListQuery = { taxRates: (
     & { items: Array<(
       { __typename?: 'TaxRate' }
       & TaxRateFragment
+    )> }
+  ) };
+
+export type GetTaxRateListSimpleQueryVariables = Exact<{
+  options?: Maybe<TaxRateListOptions>;
+}>;
+
+
+export type GetTaxRateListSimpleQuery = { taxRates: (
+    { __typename?: 'TaxRateList' }
+    & Pick<TaxRateList, 'totalItems'>
+    & { items: Array<(
+      { __typename?: 'TaxRate' }
+      & Pick<TaxRate, 'id' | 'createdAt' | 'updatedAt' | 'name' | 'enabled' | 'value'>
+      & { category: (
+        { __typename?: 'TaxCategory' }
+        & Pick<TaxCategory, 'id' | 'name'>
+      ), zone: (
+        { __typename?: 'Zone' }
+        & Pick<Zone, 'id' | 'name'>
+      ) }
     )> }
   ) };
 
@@ -7502,7 +7822,7 @@ export type UpdateGlobalSettingsMutation = { updateGlobalSettings: (
 
 type CustomFieldConfig_BooleanCustomFieldConfig_Fragment = (
   { __typename?: 'BooleanCustomFieldConfig' }
-  & Pick<BooleanCustomFieldConfig, 'name' | 'type' | 'list' | 'readonly'>
+  & Pick<BooleanCustomFieldConfig, 'name' | 'type' | 'list' | 'readonly' | 'nullable' | 'ui'>
   & { description?: Maybe<Array<(
     { __typename?: 'LocalizedString' }
     & Pick<LocalizedString, 'languageCode' | 'value'>
@@ -7514,7 +7834,7 @@ type CustomFieldConfig_BooleanCustomFieldConfig_Fragment = (
 
 type CustomFieldConfig_DateTimeCustomFieldConfig_Fragment = (
   { __typename?: 'DateTimeCustomFieldConfig' }
-  & Pick<DateTimeCustomFieldConfig, 'name' | 'type' | 'list' | 'readonly'>
+  & Pick<DateTimeCustomFieldConfig, 'name' | 'type' | 'list' | 'readonly' | 'nullable' | 'ui'>
   & { description?: Maybe<Array<(
     { __typename?: 'LocalizedString' }
     & Pick<LocalizedString, 'languageCode' | 'value'>
@@ -7526,7 +7846,7 @@ type CustomFieldConfig_DateTimeCustomFieldConfig_Fragment = (
 
 type CustomFieldConfig_FloatCustomFieldConfig_Fragment = (
   { __typename?: 'FloatCustomFieldConfig' }
-  & Pick<FloatCustomFieldConfig, 'name' | 'type' | 'list' | 'readonly'>
+  & Pick<FloatCustomFieldConfig, 'name' | 'type' | 'list' | 'readonly' | 'nullable' | 'ui'>
   & { description?: Maybe<Array<(
     { __typename?: 'LocalizedString' }
     & Pick<LocalizedString, 'languageCode' | 'value'>
@@ -7538,7 +7858,7 @@ type CustomFieldConfig_FloatCustomFieldConfig_Fragment = (
 
 type CustomFieldConfig_IntCustomFieldConfig_Fragment = (
   { __typename?: 'IntCustomFieldConfig' }
-  & Pick<IntCustomFieldConfig, 'name' | 'type' | 'list' | 'readonly'>
+  & Pick<IntCustomFieldConfig, 'name' | 'type' | 'list' | 'readonly' | 'nullable' | 'ui'>
   & { description?: Maybe<Array<(
     { __typename?: 'LocalizedString' }
     & Pick<LocalizedString, 'languageCode' | 'value'>
@@ -7550,7 +7870,7 @@ type CustomFieldConfig_IntCustomFieldConfig_Fragment = (
 
 type CustomFieldConfig_LocaleStringCustomFieldConfig_Fragment = (
   { __typename?: 'LocaleStringCustomFieldConfig' }
-  & Pick<LocaleStringCustomFieldConfig, 'name' | 'type' | 'list' | 'readonly'>
+  & Pick<LocaleStringCustomFieldConfig, 'name' | 'type' | 'list' | 'readonly' | 'nullable' | 'ui'>
   & { description?: Maybe<Array<(
     { __typename?: 'LocalizedString' }
     & Pick<LocalizedString, 'languageCode' | 'value'>
@@ -7562,7 +7882,7 @@ type CustomFieldConfig_LocaleStringCustomFieldConfig_Fragment = (
 
 type CustomFieldConfig_RelationCustomFieldConfig_Fragment = (
   { __typename?: 'RelationCustomFieldConfig' }
-  & Pick<RelationCustomFieldConfig, 'name' | 'type' | 'list' | 'readonly'>
+  & Pick<RelationCustomFieldConfig, 'name' | 'type' | 'list' | 'readonly' | 'nullable' | 'ui'>
   & { description?: Maybe<Array<(
     { __typename?: 'LocalizedString' }
     & Pick<LocalizedString, 'languageCode' | 'value'>
@@ -7574,7 +7894,7 @@ type CustomFieldConfig_RelationCustomFieldConfig_Fragment = (
 
 type CustomFieldConfig_StringCustomFieldConfig_Fragment = (
   { __typename?: 'StringCustomFieldConfig' }
-  & Pick<StringCustomFieldConfig, 'name' | 'type' | 'list' | 'readonly'>
+  & Pick<StringCustomFieldConfig, 'name' | 'type' | 'list' | 'readonly' | 'nullable' | 'ui'>
   & { description?: Maybe<Array<(
     { __typename?: 'LocalizedString' }
     & Pick<LocalizedString, 'languageCode' | 'value'>
@@ -7586,7 +7906,7 @@ type CustomFieldConfig_StringCustomFieldConfig_Fragment = (
 
 type CustomFieldConfig_TextCustomFieldConfig_Fragment = (
   { __typename?: 'TextCustomFieldConfig' }
-  & Pick<TextCustomFieldConfig, 'name' | 'type' | 'list' | 'readonly'>
+  & Pick<TextCustomFieldConfig, 'name' | 'type' | 'list' | 'readonly' | 'nullable' | 'ui'>
   & { description?: Maybe<Array<(
     { __typename?: 'LocalizedString' }
     & Pick<LocalizedString, 'languageCode' | 'value'>
@@ -7831,7 +8151,55 @@ export type GetServerConfigQuery = { globalSettings: (
         ) | (
           { __typename?: 'TextCustomFieldConfig' }
           & CustomFields_TextCustomFieldConfig_Fragment
+        )>, Country: Array<(
+          { __typename?: 'StringCustomFieldConfig' }
+          & CustomFields_StringCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'LocaleStringCustomFieldConfig' }
+          & CustomFields_LocaleStringCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'IntCustomFieldConfig' }
+          & CustomFields_IntCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'FloatCustomFieldConfig' }
+          & CustomFields_FloatCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'BooleanCustomFieldConfig' }
+          & CustomFields_BooleanCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'DateTimeCustomFieldConfig' }
+          & CustomFields_DateTimeCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'RelationCustomFieldConfig' }
+          & CustomFields_RelationCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'TextCustomFieldConfig' }
+          & CustomFields_TextCustomFieldConfig_Fragment
         )>, Customer: Array<(
+          { __typename?: 'StringCustomFieldConfig' }
+          & CustomFields_StringCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'LocaleStringCustomFieldConfig' }
+          & CustomFields_LocaleStringCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'IntCustomFieldConfig' }
+          & CustomFields_IntCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'FloatCustomFieldConfig' }
+          & CustomFields_FloatCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'BooleanCustomFieldConfig' }
+          & CustomFields_BooleanCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'DateTimeCustomFieldConfig' }
+          & CustomFields_DateTimeCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'RelationCustomFieldConfig' }
+          & CustomFields_RelationCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'TextCustomFieldConfig' }
+          & CustomFields_TextCustomFieldConfig_Fragment
+        )>, CustomerGroup: Array<(
           { __typename?: 'StringCustomFieldConfig' }
           & CustomFields_StringCustomFieldConfig_Fragment
         ) | (
@@ -7999,6 +8367,30 @@ export type GetServerConfigQuery = { globalSettings: (
         ) | (
           { __typename?: 'TextCustomFieldConfig' }
           & CustomFields_TextCustomFieldConfig_Fragment
+        )>, PaymentMethod: Array<(
+          { __typename?: 'StringCustomFieldConfig' }
+          & CustomFields_StringCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'LocaleStringCustomFieldConfig' }
+          & CustomFields_LocaleStringCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'IntCustomFieldConfig' }
+          & CustomFields_IntCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'FloatCustomFieldConfig' }
+          & CustomFields_FloatCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'BooleanCustomFieldConfig' }
+          & CustomFields_BooleanCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'DateTimeCustomFieldConfig' }
+          & CustomFields_DateTimeCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'RelationCustomFieldConfig' }
+          & CustomFields_RelationCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'TextCustomFieldConfig' }
+          & CustomFields_TextCustomFieldConfig_Fragment
         )>, Product: Array<(
           { __typename?: 'StringCustomFieldConfig' }
           & CustomFields_StringCustomFieldConfig_Fragment
@@ -8095,7 +8487,79 @@ export type GetServerConfigQuery = { globalSettings: (
         ) | (
           { __typename?: 'TextCustomFieldConfig' }
           & CustomFields_TextCustomFieldConfig_Fragment
+        )>, Promotion: Array<(
+          { __typename?: 'StringCustomFieldConfig' }
+          & CustomFields_StringCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'LocaleStringCustomFieldConfig' }
+          & CustomFields_LocaleStringCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'IntCustomFieldConfig' }
+          & CustomFields_IntCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'FloatCustomFieldConfig' }
+          & CustomFields_FloatCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'BooleanCustomFieldConfig' }
+          & CustomFields_BooleanCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'DateTimeCustomFieldConfig' }
+          & CustomFields_DateTimeCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'RelationCustomFieldConfig' }
+          & CustomFields_RelationCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'TextCustomFieldConfig' }
+          & CustomFields_TextCustomFieldConfig_Fragment
         )>, ShippingMethod: Array<(
+          { __typename?: 'StringCustomFieldConfig' }
+          & CustomFields_StringCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'LocaleStringCustomFieldConfig' }
+          & CustomFields_LocaleStringCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'IntCustomFieldConfig' }
+          & CustomFields_IntCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'FloatCustomFieldConfig' }
+          & CustomFields_FloatCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'BooleanCustomFieldConfig' }
+          & CustomFields_BooleanCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'DateTimeCustomFieldConfig' }
+          & CustomFields_DateTimeCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'RelationCustomFieldConfig' }
+          & CustomFields_RelationCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'TextCustomFieldConfig' }
+          & CustomFields_TextCustomFieldConfig_Fragment
+        )>, TaxCategory: Array<(
+          { __typename?: 'StringCustomFieldConfig' }
+          & CustomFields_StringCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'LocaleStringCustomFieldConfig' }
+          & CustomFields_LocaleStringCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'IntCustomFieldConfig' }
+          & CustomFields_IntCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'FloatCustomFieldConfig' }
+          & CustomFields_FloatCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'BooleanCustomFieldConfig' }
+          & CustomFields_BooleanCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'DateTimeCustomFieldConfig' }
+          & CustomFields_DateTimeCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'RelationCustomFieldConfig' }
+          & CustomFields_RelationCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'TextCustomFieldConfig' }
+          & CustomFields_TextCustomFieldConfig_Fragment
+        )>, TaxRate: Array<(
           { __typename?: 'StringCustomFieldConfig' }
           & CustomFields_StringCustomFieldConfig_Fragment
         ) | (
@@ -8143,6 +8607,30 @@ export type GetServerConfigQuery = { globalSettings: (
         ) | (
           { __typename?: 'TextCustomFieldConfig' }
           & CustomFields_TextCustomFieldConfig_Fragment
+        )>, Zone: Array<(
+          { __typename?: 'StringCustomFieldConfig' }
+          & CustomFields_StringCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'LocaleStringCustomFieldConfig' }
+          & CustomFields_LocaleStringCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'IntCustomFieldConfig' }
+          & CustomFields_IntCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'FloatCustomFieldConfig' }
+          & CustomFields_FloatCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'BooleanCustomFieldConfig' }
+          & CustomFields_BooleanCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'DateTimeCustomFieldConfig' }
+          & CustomFields_DateTimeCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'RelationCustomFieldConfig' }
+          & CustomFields_RelationCustomFieldConfig_Fragment
+        ) | (
+          { __typename?: 'TextCustomFieldConfig' }
+          & CustomFields_TextCustomFieldConfig_Fragment
         )> }
       ) }
     ) }
@@ -8150,7 +8638,7 @@ export type GetServerConfigQuery = { globalSettings: (
 
 export type JobInfoFragment = (
   { __typename?: 'Job' }
-  & Pick<Job, 'id' | 'createdAt' | 'startedAt' | 'settledAt' | 'queueName' | 'state' | 'isSettled' | 'progress' | 'duration' | 'data' | 'result' | 'error'>
+  & Pick<Job, 'id' | 'createdAt' | 'startedAt' | 'settledAt' | 'queueName' | 'state' | 'isSettled' | 'progress' | 'duration' | 'data' | 'result' | 'error' | 'retries' | 'attempts'>
 );
 
 export type GetJobInfoQueryVariables = Exact<{
@@ -8211,6 +8699,19 @@ export type ReindexMutationVariables = Exact<{ [key: string]: never; }>;
 export type ReindexMutation = { reindex: (
     { __typename?: 'Job' }
     & JobInfoFragment
+  ) };
+
+export type GetPendingSearchIndexUpdatesQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type GetPendingSearchIndexUpdatesQuery = Pick<Query, 'pendingSearchIndexUpdates'>;
+
+export type RunPendingSearchIndexUpdatesMutationVariables = Exact<{ [key: string]: never; }>;
+
+
+export type RunPendingSearchIndexUpdatesMutation = { runPendingSearchIndexUpdates: (
+    { __typename?: 'Success' }
+    & Pick<Success, 'success'>
   ) };
 
 export type ConfigurableOperationFragment = (
@@ -8653,6 +9154,16 @@ export namespace SetUiLanguage {
   export type Mutation = SetUiLanguageMutation;
 }
 
+export namespace SetUiLocale {
+  export type Variables = SetUiLocaleMutationVariables;
+  export type Mutation = SetUiLocaleMutation;
+}
+
+export namespace SetDisplayUiExtensionPoints {
+  export type Variables = SetDisplayUiExtensionPointsMutationVariables;
+  export type Mutation = SetDisplayUiExtensionPointsMutation;
+}
+
 export namespace SetContentLanguage {
   export type Variables = SetContentLanguageMutationVariables;
   export type Mutation = SetContentLanguageMutation;
@@ -8773,6 +9284,10 @@ export namespace Customer {
   export type Fragment = CustomerFragment;
   export type User = (NonNullable<CustomerFragment['user']>);
   export type Addresses = NonNullable<(NonNullable<CustomerFragment['addresses']>)[number]>;
+}
+
+export namespace CustomerGroup {
+  export type Fragment = CustomerGroupFragment;
 }
 
 export namespace GetCustomerList {
@@ -9166,16 +9681,15 @@ export namespace ProductVariant {
   export type Channels = NonNullable<(NonNullable<ProductVariantFragment['channels']>)[number]>;
 }
 
-export namespace ProductWithVariants {
-  export type Fragment = ProductWithVariantsFragment;
-  export type FeaturedAsset = (NonNullable<ProductWithVariantsFragment['featuredAsset']>);
-  export type Assets = NonNullable<(NonNullable<ProductWithVariantsFragment['assets']>)[number]>;
-  export type Translations = NonNullable<(NonNullable<ProductWithVariantsFragment['translations']>)[number]>;
-  export type OptionGroups = NonNullable<(NonNullable<ProductWithVariantsFragment['optionGroups']>)[number]>;
-  export type Variants = NonNullable<(NonNullable<ProductWithVariantsFragment['variants']>)[number]>;
-  export type FacetValues = NonNullable<(NonNullable<ProductWithVariantsFragment['facetValues']>)[number]>;
-  export type Facet = (NonNullable<NonNullable<(NonNullable<ProductWithVariantsFragment['facetValues']>)[number]>['facet']>);
-  export type Channels = NonNullable<(NonNullable<ProductWithVariantsFragment['channels']>)[number]>;
+export namespace ProductDetail {
+  export type Fragment = ProductDetailFragment;
+  export type FeaturedAsset = (NonNullable<ProductDetailFragment['featuredAsset']>);
+  export type Assets = NonNullable<(NonNullable<ProductDetailFragment['assets']>)[number]>;
+  export type Translations = NonNullable<(NonNullable<ProductDetailFragment['translations']>)[number]>;
+  export type OptionGroups = NonNullable<(NonNullable<ProductDetailFragment['optionGroups']>)[number]>;
+  export type FacetValues = NonNullable<(NonNullable<ProductDetailFragment['facetValues']>)[number]>;
+  export type Facet = (NonNullable<NonNullable<(NonNullable<ProductDetailFragment['facetValues']>)[number]>['facet']>);
+  export type Channels = NonNullable<(NonNullable<ProductDetailFragment['channels']>)[number]>;
 }
 
 export namespace ProductOptionGroupWithOptions {
@@ -9189,12 +9703,16 @@ export namespace UpdateProduct {
   export type Variables = UpdateProductMutationVariables;
   export type Mutation = UpdateProductMutation;
   export type UpdateProduct = (NonNullable<UpdateProductMutation['updateProduct']>);
+  export type VariantList = (NonNullable<(NonNullable<UpdateProductMutation['updateProduct']>)['variantList']>);
+  export type Items = NonNullable<(NonNullable<(NonNullable<(NonNullable<UpdateProductMutation['updateProduct']>)['variantList']>)['items']>)[number]>;
 }
 
 export namespace CreateProduct {
   export type Variables = CreateProductMutationVariables;
   export type Mutation = CreateProductMutation;
   export type CreateProduct = (NonNullable<CreateProductMutation['createProduct']>);
+  export type VariantList = (NonNullable<(NonNullable<CreateProductMutation['createProduct']>)['variantList']>);
+  export type Items = NonNullable<(NonNullable<(NonNullable<(NonNullable<CreateProductMutation['createProduct']>)['variantList']>)['items']>)[number]>;
 }
 
 export namespace DeleteProduct {
@@ -9254,6 +9772,8 @@ export namespace GetProductWithVariants {
   export type Variables = GetProductWithVariantsQueryVariables;
   export type Query = GetProductWithVariantsQuery;
   export type Product = (NonNullable<GetProductWithVariantsQuery['product']>);
+  export type VariantList = (NonNullable<(NonNullable<GetProductWithVariantsQuery['product']>)['variantList']>);
+  export type Items = NonNullable<(NonNullable<(NonNullable<(NonNullable<GetProductWithVariantsQuery['product']>)['variantList']>)['items']>)[number]>;
 }
 
 export namespace GetProductSimple {
@@ -9409,16 +9929,23 @@ export namespace GetProductVariant {
   export type _FocalPoint = (NonNullable<(NonNullable<(NonNullable<(NonNullable<GetProductVariantQuery['productVariant']>)['product']>)['featuredAsset']>)['focalPoint']>);
 }
 
+export namespace GetProductVariantListSimple {
+  export type Variables = GetProductVariantListSimpleQueryVariables;
+  export type Query = GetProductVariantListSimpleQuery;
+  export type ProductVariants = (NonNullable<GetProductVariantListSimpleQuery['productVariants']>);
+  export type Items = NonNullable<(NonNullable<(NonNullable<GetProductVariantListSimpleQuery['productVariants']>)['items']>)[number]>;
+  export type FeaturedAsset = (NonNullable<NonNullable<(NonNullable<(NonNullable<GetProductVariantListSimpleQuery['productVariants']>)['items']>)[number]>['featuredAsset']>);
+  export type FocalPoint = (NonNullable<(NonNullable<NonNullable<(NonNullable<(NonNullable<GetProductVariantListSimpleQuery['productVariants']>)['items']>)[number]>['featuredAsset']>)['focalPoint']>);
+  export type Product = (NonNullable<NonNullable<(NonNullable<(NonNullable<GetProductVariantListSimpleQuery['productVariants']>)['items']>)[number]>['product']>);
+  export type _FeaturedAsset = (NonNullable<(NonNullable<NonNullable<(NonNullable<(NonNullable<GetProductVariantListSimpleQuery['productVariants']>)['items']>)[number]>['product']>)['featuredAsset']>);
+  export type _FocalPoint = (NonNullable<(NonNullable<(NonNullable<NonNullable<(NonNullable<(NonNullable<GetProductVariantListSimpleQuery['productVariants']>)['items']>)[number]>['product']>)['featuredAsset']>)['focalPoint']>);
+}
+
 export namespace GetProductVariantList {
   export type Variables = GetProductVariantListQueryVariables;
   export type Query = GetProductVariantListQuery;
   export type ProductVariants = (NonNullable<GetProductVariantListQuery['productVariants']>);
   export type Items = NonNullable<(NonNullable<(NonNullable<GetProductVariantListQuery['productVariants']>)['items']>)[number]>;
-  export type FeaturedAsset = (NonNullable<NonNullable<(NonNullable<(NonNullable<GetProductVariantListQuery['productVariants']>)['items']>)[number]>['featuredAsset']>);
-  export type FocalPoint = (NonNullable<(NonNullable<NonNullable<(NonNullable<(NonNullable<GetProductVariantListQuery['productVariants']>)['items']>)[number]>['featuredAsset']>)['focalPoint']>);
-  export type Product = (NonNullable<NonNullable<(NonNullable<(NonNullable<GetProductVariantListQuery['productVariants']>)['items']>)[number]>['product']>);
-  export type _FeaturedAsset = (NonNullable<(NonNullable<NonNullable<(NonNullable<(NonNullable<GetProductVariantListQuery['productVariants']>)['items']>)[number]>['product']>)['featuredAsset']>);
-  export type _FocalPoint = (NonNullable<(NonNullable<(NonNullable<NonNullable<(NonNullable<(NonNullable<GetProductVariantListQuery['productVariants']>)['items']>)[number]>['product']>)['featuredAsset']>)['focalPoint']>);
 }
 
 export namespace GetTagList {
@@ -9635,6 +10162,15 @@ export namespace GetTaxRateList {
   export type Items = NonNullable<(NonNullable<(NonNullable<GetTaxRateListQuery['taxRates']>)['items']>)[number]>;
 }
 
+export namespace GetTaxRateListSimple {
+  export type Variables = GetTaxRateListSimpleQueryVariables;
+  export type Query = GetTaxRateListSimpleQuery;
+  export type TaxRates = (NonNullable<GetTaxRateListSimpleQuery['taxRates']>);
+  export type Items = NonNullable<(NonNullable<(NonNullable<GetTaxRateListSimpleQuery['taxRates']>)['items']>)[number]>;
+  export type Category = (NonNullable<NonNullable<(NonNullable<(NonNullable<GetTaxRateListSimpleQuery['taxRates']>)['items']>)[number]>['category']>);
+  export type Zone = (NonNullable<NonNullable<(NonNullable<(NonNullable<GetTaxRateListSimpleQuery['taxRates']>)['items']>)[number]>['zone']>);
+}
+
 export namespace GetTaxRate {
   export type Variables = GetTaxRateQueryVariables;
   export type Query = GetTaxRateQuery;
@@ -9829,19 +10365,26 @@ export namespace GetServerConfig {
   export type Asset = NonNullable<(NonNullable<(NonNullable<(NonNullable<(NonNullable<GetServerConfigQuery['globalSettings']>)['serverConfig']>)['customFieldConfig']>)['Asset']>)[number]>;
   export type Channel = NonNullable<(NonNullable<(NonNullable<(NonNullable<(NonNullable<GetServerConfigQuery['globalSettings']>)['serverConfig']>)['customFieldConfig']>)['Channel']>)[number]>;
   export type Collection = NonNullable<(NonNullable<(NonNullable<(NonNullable<(NonNullable<GetServerConfigQuery['globalSettings']>)['serverConfig']>)['customFieldConfig']>)['Collection']>)[number]>;
+  export type Country = NonNullable<(NonNullable<(NonNullable<(NonNullable<(NonNullable<GetServerConfigQuery['globalSettings']>)['serverConfig']>)['customFieldConfig']>)['Country']>)[number]>;
   export type Customer = NonNullable<(NonNullable<(NonNullable<(NonNullable<(NonNullable<GetServerConfigQuery['globalSettings']>)['serverConfig']>)['customFieldConfig']>)['Customer']>)[number]>;
+  export type CustomerGroup = NonNullable<(NonNullable<(NonNullable<(NonNullable<(NonNullable<GetServerConfigQuery['globalSettings']>)['serverConfig']>)['customFieldConfig']>)['CustomerGroup']>)[number]>;
   export type Facet = NonNullable<(NonNullable<(NonNullable<(NonNullable<(NonNullable<GetServerConfigQuery['globalSettings']>)['serverConfig']>)['customFieldConfig']>)['Facet']>)[number]>;
   export type FacetValue = NonNullable<(NonNullable<(NonNullable<(NonNullable<(NonNullable<GetServerConfigQuery['globalSettings']>)['serverConfig']>)['customFieldConfig']>)['FacetValue']>)[number]>;
   export type Fulfillment = NonNullable<(NonNullable<(NonNullable<(NonNullable<(NonNullable<GetServerConfigQuery['globalSettings']>)['serverConfig']>)['customFieldConfig']>)['Fulfillment']>)[number]>;
   export type _GlobalSettings = NonNullable<(NonNullable<(NonNullable<(NonNullable<(NonNullable<GetServerConfigQuery['globalSettings']>)['serverConfig']>)['customFieldConfig']>)['GlobalSettings']>)[number]>;
   export type Order = NonNullable<(NonNullable<(NonNullable<(NonNullable<(NonNullable<GetServerConfigQuery['globalSettings']>)['serverConfig']>)['customFieldConfig']>)['Order']>)[number]>;
   export type OrderLine = NonNullable<(NonNullable<(NonNullable<(NonNullable<(NonNullable<GetServerConfigQuery['globalSettings']>)['serverConfig']>)['customFieldConfig']>)['OrderLine']>)[number]>;
+  export type PaymentMethod = NonNullable<(NonNullable<(NonNullable<(NonNullable<(NonNullable<GetServerConfigQuery['globalSettings']>)['serverConfig']>)['customFieldConfig']>)['PaymentMethod']>)[number]>;
   export type Product = NonNullable<(NonNullable<(NonNullable<(NonNullable<(NonNullable<GetServerConfigQuery['globalSettings']>)['serverConfig']>)['customFieldConfig']>)['Product']>)[number]>;
   export type ProductOption = NonNullable<(NonNullable<(NonNullable<(NonNullable<(NonNullable<GetServerConfigQuery['globalSettings']>)['serverConfig']>)['customFieldConfig']>)['ProductOption']>)[number]>;
   export type ProductOptionGroup = NonNullable<(NonNullable<(NonNullable<(NonNullable<(NonNullable<GetServerConfigQuery['globalSettings']>)['serverConfig']>)['customFieldConfig']>)['ProductOptionGroup']>)[number]>;
   export type ProductVariant = NonNullable<(NonNullable<(NonNullable<(NonNullable<(NonNullable<GetServerConfigQuery['globalSettings']>)['serverConfig']>)['customFieldConfig']>)['ProductVariant']>)[number]>;
+  export type Promotion = NonNullable<(NonNullable<(NonNullable<(NonNullable<(NonNullable<GetServerConfigQuery['globalSettings']>)['serverConfig']>)['customFieldConfig']>)['Promotion']>)[number]>;
   export type ShippingMethod = NonNullable<(NonNullable<(NonNullable<(NonNullable<(NonNullable<GetServerConfigQuery['globalSettings']>)['serverConfig']>)['customFieldConfig']>)['ShippingMethod']>)[number]>;
+  export type TaxCategory = NonNullable<(NonNullable<(NonNullable<(NonNullable<(NonNullable<GetServerConfigQuery['globalSettings']>)['serverConfig']>)['customFieldConfig']>)['TaxCategory']>)[number]>;
+  export type TaxRate = NonNullable<(NonNullable<(NonNullable<(NonNullable<(NonNullable<GetServerConfigQuery['globalSettings']>)['serverConfig']>)['customFieldConfig']>)['TaxRate']>)[number]>;
   export type User = NonNullable<(NonNullable<(NonNullable<(NonNullable<(NonNullable<GetServerConfigQuery['globalSettings']>)['serverConfig']>)['customFieldConfig']>)['User']>)[number]>;
+  export type Zone = NonNullable<(NonNullable<(NonNullable<(NonNullable<(NonNullable<GetServerConfigQuery['globalSettings']>)['serverConfig']>)['customFieldConfig']>)['Zone']>)[number]>;
 }
 
 export namespace JobInfo {
@@ -9883,6 +10426,17 @@ export namespace Reindex {
   export type Variables = ReindexMutationVariables;
   export type Mutation = ReindexMutation;
   export type Reindex = (NonNullable<ReindexMutation['reindex']>);
+}
+
+export namespace GetPendingSearchIndexUpdates {
+  export type Variables = GetPendingSearchIndexUpdatesQueryVariables;
+  export type Query = GetPendingSearchIndexUpdatesQuery;
+}
+
+export namespace RunPendingSearchIndexUpdates {
+  export type Variables = RunPendingSearchIndexUpdatesMutationVariables;
+  export type Mutation = RunPendingSearchIndexUpdatesMutation;
+  export type RunPendingSearchIndexUpdates = (NonNullable<RunPendingSearchIndexUpdatesMutation['runPendingSearchIndexUpdates']>);
 }
 
 export namespace ConfigurableOperation {

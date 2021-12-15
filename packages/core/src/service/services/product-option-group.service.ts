@@ -9,19 +9,28 @@ import { FindManyOptions, Like } from 'typeorm';
 import { RequestContext } from '../../api/common/request-context';
 import { Translated } from '../../common/types/locale-types';
 import { assertFound } from '../../common/utils';
+import { TransactionalConnection } from '../../connection/transactional-connection';
 import { ProductOptionGroupTranslation } from '../../entity/product-option-group/product-option-group-translation.entity';
 import { ProductOptionGroup } from '../../entity/product-option-group/product-option-group.entity';
+import { EventBus } from '../../event-bus';
+import { ProductOptionGroupEvent } from '../../event-bus/events/product-option-group-event';
 import { CustomFieldRelationService } from '../helpers/custom-field-relation/custom-field-relation.service';
 import { TranslatableSaver } from '../helpers/translatable-saver/translatable-saver';
 import { translateDeep } from '../helpers/utils/translate-entity';
-import { TransactionalConnection } from '../transaction/transactional-connection';
 
+/**
+ * @description
+ * Contains methods relating to {@link ProductOptionGroup} entities.
+ *
+ * @docsCategory services
+ */
 @Injectable()
 export class ProductOptionGroupService {
     constructor(
         private connection: TransactionalConnection,
         private translatableSaver: TranslatableSaver,
         private customFieldRelationService: CustomFieldRelationService,
+        private eventBus: EventBus,
     ) {}
 
     findAll(ctx: RequestContext, filterTerm?: string): Promise<Array<Translated<ProductOptionGroup>>> {
@@ -73,7 +82,13 @@ export class ProductOptionGroupService {
             entityType: ProductOptionGroup,
             translationType: ProductOptionGroupTranslation,
         });
-        await this.customFieldRelationService.updateRelations(ctx, ProductOptionGroup, input, group);
+        const groupWithRelations = await this.customFieldRelationService.updateRelations(
+            ctx,
+            ProductOptionGroup,
+            input,
+            group,
+        );
+        this.eventBus.publish(new ProductOptionGroupEvent(ctx, groupWithRelations, 'created', input));
         return assertFound(this.findOne(ctx, group.id));
     }
 
@@ -88,6 +103,7 @@ export class ProductOptionGroupService {
             translationType: ProductOptionGroupTranslation,
         });
         await this.customFieldRelationService.updateRelations(ctx, ProductOptionGroup, input, group);
+        this.eventBus.publish(new ProductOptionGroupEvent(ctx, group, 'updated', input));
         return assertFound(this.findOne(ctx, group.id));
     }
 }

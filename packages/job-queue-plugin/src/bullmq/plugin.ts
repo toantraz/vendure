@@ -3,16 +3,13 @@ import { HealthCheckRegistryService, PluginCommonModule, VendurePlugin } from '@
 import { BullMQJobQueueStrategy } from './bullmq-job-queue-strategy';
 import { BULLMQ_PLUGIN_OPTIONS } from './constants';
 import { RedisHealthIndicator } from './redis-health-indicator';
+import { RedisJobBufferStorageStrategy } from './redis-job-buffer-storage-strategy';
 import { BullMQPluginOptions } from './types';
 
 /**
  * @description
  * This plugin is a drop-in replacement of the DefaultJobQueuePlugin, which implements a push-based
  * job queue strategy built on top of the popular [BullMQ](https://github.com/taskforcesh/bullmq) library.
- *
- * {{% alert "warning" %}}
- * This plugin was newly released with Vendure v1.2.0 and has yet to receive thorough real-world testing.
- * {{% /alert %}}
  *
  * ## Advantages over the DefaultJobQueuePlugin
  *
@@ -103,6 +100,7 @@ import { BullMQPluginOptions } from './types';
     imports: [PluginCommonModule],
     configuration: config => {
         config.jobQueueOptions.jobQueueStrategy = new BullMQJobQueueStrategy();
+        config.jobQueueOptions.jobBufferStorageStrategy = new RedisJobBufferStorageStrategy();
         return config;
     },
     providers: [

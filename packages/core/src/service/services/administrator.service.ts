@@ -10,18 +10,27 @@ import { RequestContext } from '../../api/common/request-context';
 import { EntityNotFoundError } from '../../common/error/errors';
 import { ListQueryOptions } from '../../common/types/common-types';
 import { ConfigService } from '../../config';
+import { TransactionalConnection } from '../../connection/transactional-connection';
 import { Administrator } from '../../entity/administrator/administrator.entity';
 import { NativeAuthenticationMethod } from '../../entity/authentication-method/native-authentication-method.entity';
 import { User } from '../../entity/user/user.entity';
+import { EventBus } from '../../event-bus';
+import { AdministratorEvent } from '../../event-bus/events/administrator-event';
+import { RoleChangeEvent } from '../../event-bus/events/role-change-event';
 import { CustomFieldRelationService } from '../helpers/custom-field-relation/custom-field-relation.service';
 import { ListQueryBuilder } from '../helpers/list-query-builder/list-query-builder';
 import { PasswordCipher } from '../helpers/password-cipher/password-cipher';
 import { patchEntity } from '../helpers/utils/patch-entity';
-import { TransactionalConnection } from '../transaction/transactional-connection';
 
 import { RoleService } from './role.service';
 import { UserService } from './user.service';
 
+/**
+ * @description
+ * Contains methods relating to {@link Administrator} entities.
+ *
+ * @docsCategory services
+ */
 @Injectable()
 export class AdministratorService {
     constructor(
@@ -32,12 +41,18 @@ export class AdministratorService {
         private userService: UserService,
         private roleService: RoleService,
         private customFieldRelationService: CustomFieldRelationService,
+        private eventBus: EventBus,
     ) {}
 
+    /** @internal */
     async initAdministrators() {
         await this.ensureSuperAdminExists();
     }
 
+    /**
+     * @description
+     * Get a paginated list of Administrators.
+     */
     findAll(
         ctx: RequestContext,
         options?: ListQueryOptions<Administrator>,
@@ -55,6 +70,10 @@ export class AdministratorService {
             }));
     }
 
+    /**
+     * @description
+     * Get an Administrator by id.
+     */
     findOne(ctx: RequestContext, administratorId: ID): Promise<Administrator | undefined> {
         return this.connection.getRepository(ctx, Administrator).findOne(administratorId, {
             relations: ['user', 'user.roles'],
@@ -64,6 +83,10 @@ export class AdministratorService {
         });
     }
 
+    /**
+     * @description
+     * Get an Administrator based on the User id.
+     */
     findOneByUserId(ctx: RequestContext, userId: ID): Promise<Administrator | undefined> {
         return this.connection.getRepository(ctx, Administrator).findOne({
             where: {
@@ -73,6 +96,10 @@ export class AdministratorService {
         });
     }
 
+    /**
+     * @description
+     * Create a new Administrator.
+     */
     async create(ctx: RequestContext, input: CreateAdministratorInput): Promise<Administrator> {
         const administrator = new Administrator(input);
         administrator.user = await this.userService.createAdminUser(ctx, input.emailAddress, input.password);
@@ -88,9 +115,14 @@ export class AdministratorService {
             input,
             createdAdministrator,
         );
+        this.eventBus.publish(new AdministratorEvent(ctx, createdAdministrator, 'created', input));
         return createdAdministrator;
     }
 
+    /**
+     * @description
+     * Update an existing Administrator.
+     */
     async update(ctx: RequestContext, input: UpdateAdministratorInput): Promise<Administrator> {
         const administrator = await this.findOne(ctx, input.id);
         if (!administrator) {
@@ -112,11 +144,21 @@ export class AdministratorService {
             }
         }
         if (input.roleIds) {
+            const removeIds = administrator.user.roles
+                .map(role => role.id)
+                .filter(roleId => (input.roleIds as ID[]).indexOf(roleId) === -1);
+
+            const addIds = (input.roleIds as ID[]).filter(
+                roleId => !administrator.user.roles.some(role => role.id === roleId),
+            );
+
             administrator.user.roles = [];
             await this.connection.getRepository(ctx, User).save(administrator.user, { reload: false });
             for (const roleId of input.roleIds) {
                 updatedAdministrator = await this.assignRole(ctx, administrator.id, roleId);
             }
+            this.eventBus.publish(new RoleChangeEvent(ctx, administrator, addIds, 'assigned'));
+            this.eventBus.publish(new RoleChangeEvent(ctx, administrator, removeIds, 'removed'));
         }
         await this.customFieldRelationService.updateRelations(
             ctx,
@@ -124,10 +166,12 @@ export class AdministratorService {
             input,
             updatedAdministrator,
         );
+        this.eventBus.publish(new AdministratorEvent(ctx, administrator, 'updated', input));
         return updatedAdministrator;
     }
 
     /**
+     * @description
      * Assigns a Role to the Administrator's User entity.
      */
     async assignRole(ctx: RequestContext, administratorId: ID, roleId: ID): Promise<Administrator> {
@@ -144,6 +188,10 @@ export class AdministratorService {
         return administrator;
     }
 
+    /**
+     * @description
+     * Soft deletes an Administrator (sets the `deletedAt` field).
+     */
     async softDelete(ctx: RequestContext, id: ID) {
         const administrator = await this.connection.getEntityOrThrow(ctx, Administrator, id, {
             relations: ['user'],
@@ -151,14 +199,18 @@ export class AdministratorService {
         await this.connection.getRepository(ctx, Administrator).update({ id }, { deletedAt: new Date() });
         // tslint:disable-next-line:no-non-null-assertion
         await this.userService.softDelete(ctx, administrator.user!.id);
+        this.eventBus.publish(new AdministratorEvent(ctx, administrator, 'deleted', id));
         return {
             result: DeletionResult.DELETED,
         };
     }
 
     /**
+     * @description
      * There must always exist a SuperAdmin, otherwise full administration via API will
      * no longer be possible.
+     *
+     * @internal
      */
     private async ensureSuperAdminExists() {
         const { superadminCredentials } = this.configService.authOptions;

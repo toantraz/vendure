@@ -20,6 +20,8 @@ import {
     GlobalFlag,
     SettlePayment,
     StockMovementType,
+    TransitFulfillment,
+    TransitionFulfillmentToState,
     UpdateGlobalSettings,
     UpdateProductVariantInput,
     UpdateProductVariants,
@@ -29,10 +31,14 @@ import {
 import {
     AddItemToOrder,
     AddPaymentToOrder,
+    AdjustItemQuantity,
     ErrorCode,
+    GetActiveOrder,
     GetProductStockLevel,
+    GetShippingMethods,
     PaymentInput,
     SetShippingAddress,
+    SetShippingMethod,
     TestOrderFragmentFragment,
     TestOrderWithPaymentsFragment,
     TransitionToState,
@@ -50,8 +56,12 @@ import {
 import {
     ADD_ITEM_TO_ORDER,
     ADD_PAYMENT,
+    ADJUST_ITEM_QUANTITY,
+    GET_ACTIVE_ORDER,
+    GET_ELIGIBLE_SHIPPING_METHODS,
     GET_PRODUCT_WITH_STOCK_LEVEL,
     SET_SHIPPING_ADDRESS,
+    SET_SHIPPING_METHOD,
     TRANSITION_TO_STATE,
 } from './graphql/shop-definitions';
 import { assertThrowsWithMessage } from './utils/assert-throws-with-message';
@@ -59,7 +69,7 @@ import { addPaymentToOrder, proceedToArrangingPayment } from './utils/test-order
 
 describe('Stock control', () => {
     const { server, adminClient, shopClient } = createTestEnvironment(
-        mergeConfig(testConfig, {
+        mergeConfig(testConfig(), {
             paymentOptions: {
                 paymentMethodHandlers: [testSuccessfulPaymentMethod, twoStagePaymentMethod],
             },
@@ -69,9 +79,8 @@ describe('Stock control', () => {
         }),
     );
 
-    const orderGuard: ErrorResultGuard<
-        TestOrderFragmentFragment | UpdatedOrderFragment
-    > = createErrorResultGuard(input => !!input.lines);
+    const orderGuard: ErrorResultGuard<TestOrderFragmentFragment | UpdatedOrderFragment> =
+        createErrorResultGuard(input => !!input.lines);
 
     const fulfillmentGuard: ErrorResultGuard<FulfillmentFragment> = createErrorResultGuard(
         input => !!input.state,
@@ -83,6 +92,15 @@ describe('Stock control', () => {
             { id: productId },
         );
         return product;
+    }
+
+    async function setFirstEligibleShippingMethod() {
+        const { eligibleShippingMethods } = await shopClient.query<GetShippingMethods.Query>(
+            GET_ELIGIBLE_SHIPPING_METHODS,
+        );
+        await shopClient.query<SetShippingMethod.Mutation, SetShippingMethod.Variables>(SET_SHIPPING_METHOD, {
+            id: eligibleShippingMethods[0].id,
+        });
     }
 
     beforeAll(async () => {
@@ -258,6 +276,7 @@ describe('Stock control', () => {
                     } as CreateAddressInput,
                 },
             );
+            await setFirstEligibleShippingMethod();
             await shopClient.query<TransitionToState.Mutation, TransitionToState.Variables>(
                 TRANSITION_TO_STATE,
                 { state: 'ArrangingPayment' as OrderState },
@@ -411,6 +430,121 @@ describe('Stock control', () => {
             expect(variant3.stockMovements.items[4].type).toBe(StockMovementType.CANCELLATION);
             expect(variant3.stockMovements.items[5].type).toBe(StockMovementType.CANCELLATION);
             expect(variant3.stockMovements.items[6].type).toBe(StockMovementType.CANCELLATION);
+        });
+
+        // https://github.com/vendure-ecommerce/vendure/issues/1198
+        it('creates Cancellations & adjusts stock when cancelling a Fulfillment', async () => {
+            async function getTrackedVariant() {
+                const result = await getProductWithStockMovement('T_2');
+                return result?.variants[1]!;
+            }
+
+            const trackedVariant1 = await getTrackedVariant();
+
+            expect(trackedVariant1.stockOnHand).toBe(5);
+
+            // Add items to order and check out
+            await shopClient.asUserWithCredentials('hayden.zieme12@hotmail.com', 'test');
+            await shopClient.query<AddItemToOrder.Mutation, AddItemToOrder.Variables>(ADD_ITEM_TO_ORDER, {
+                productVariantId: trackedVariant1.id,
+                quantity: 1,
+            });
+            await shopClient.query<SetShippingAddress.Mutation, SetShippingAddress.Variables>(
+                SET_SHIPPING_ADDRESS,
+                {
+                    input: {
+                        streetLine1: '1 Test Street',
+                        countryCode: 'GB',
+                    } as CreateAddressInput,
+                },
+            );
+            await setFirstEligibleShippingMethod();
+            await shopClient.query<TransitionToState.Mutation, TransitionToState.Variables>(
+                TRANSITION_TO_STATE,
+                { state: 'ArrangingPayment' as OrderState },
+            );
+            const { addPaymentToOrder: order } = await shopClient.query<
+                AddPaymentToOrder.Mutation,
+                AddPaymentToOrder.Variables
+            >(ADD_PAYMENT, {
+                input: {
+                    method: testSuccessfulPaymentMethod.code,
+                    metadata: {},
+                } as PaymentInput,
+            });
+            orderGuard.assertSuccess(order);
+            expect(order).not.toBeNull();
+
+            const trackedVariant2 = await getTrackedVariant();
+            expect(trackedVariant2.stockOnHand).toBe(5);
+            expect(trackedVariant2.stockAllocated).toBe(1);
+
+            const linesInput =
+                order?.lines
+                    .filter(l => l.productVariant.id === trackedVariant2.id)
+                    .map(l => ({ orderLineId: l.id, quantity: l.quantity })) ?? [];
+
+            const { addFulfillmentToOrder } = await adminClient.query<
+                CreateFulfillment.Mutation,
+                CreateFulfillment.Variables
+            >(CREATE_FULFILLMENT, {
+                input: {
+                    lines: linesInput,
+                    handler: {
+                        code: manualFulfillmentHandler.code,
+                        arguments: [
+                            { name: 'method', value: 'test method' },
+                            { name: 'trackingCode', value: 'ABC123' },
+                        ],
+                    },
+                },
+            });
+
+            const trackedVariant3 = await getTrackedVariant();
+
+            expect(trackedVariant3.stockOnHand).toBe(4);
+            expect(trackedVariant3.stockAllocated).toBe(0);
+
+            const { transitionFulfillmentToState } = await adminClient.query<
+                TransitionFulfillmentToState.Mutation,
+                TransitionFulfillmentToState.Variables
+            >(TRANSITION_FULFILLMENT_TO_STATE, {
+                state: 'Cancelled',
+                id: (addFulfillmentToOrder as any).id,
+            });
+
+            const trackedVariant4 = await getTrackedVariant();
+
+            expect(trackedVariant4.stockOnHand).toBe(5);
+            expect(trackedVariant4.stockAllocated).toBe(1);
+            expect(trackedVariant4.stockMovements.items).toEqual([
+                { id: 'T_4', quantity: 5, type: 'ADJUSTMENT' },
+                { id: 'T_7', quantity: 3, type: 'ALLOCATION' },
+                { id: 'T_9', quantity: 1, type: 'RELEASE' },
+                { id: 'T_11', quantity: -2, type: 'SALE' },
+                { id: 'T_15', quantity: 1, type: 'CANCELLATION' },
+                { id: 'T_16', quantity: 1, type: 'CANCELLATION' },
+                { id: 'T_21', quantity: 1, type: 'ALLOCATION' },
+                { id: 'T_22', quantity: -1, type: 'SALE' },
+                // This is the cancellation & allocation we are testing for
+                { id: 'T_23', quantity: 1, type: 'CANCELLATION' },
+                { id: 'T_24', quantity: 1, type: 'ALLOCATION' },
+            ]);
+
+            const { cancelOrder } = await adminClient.query<CancelOrder.Mutation, CancelOrder.Variables>(
+                CANCEL_ORDER,
+                {
+                    input: {
+                        orderId: order!.id,
+                        reason: 'Not needed',
+                    },
+                },
+            );
+            orderGuard.assertSuccess(cancelOrder);
+
+            const trackedVariant5 = await getTrackedVariant();
+            expect(trackedVariant5.stockOnHand).toBe(5);
+            expect(trackedVariant5.stockAllocated).toBe(0);
         });
     });
 
@@ -811,6 +945,7 @@ describe('Stock control', () => {
         describe('edge cases', () => {
             const variant5Id = 'T_5';
             const variant6Id = 'T_6';
+            const variant7Id = 'T_7';
 
             beforeAll(async () => {
                 // First place an order which creates a backorder (excess of allocated units)
@@ -827,6 +962,13 @@ describe('Stock control', () => {
                             },
                             {
                                 id: variant6Id,
+                                stockOnHand: 3,
+                                outOfStockThreshold: 0,
+                                trackInventory: GlobalFlag.TRUE,
+                                useGlobalOutOfStockThreshold: false,
+                            },
+                            {
+                                id: variant7Id,
                                 stockOnHand: 3,
                                 outOfStockThreshold: 0,
                                 trackInventory: GlobalFlag.TRUE,
@@ -925,6 +1067,58 @@ describe('Stock control', () => {
                 expect((add2 as any).order.lines[0].productVariant.id).toBe(variant6Id);
                 expect((add2 as any).order.lines[0].quantity).toBe(3);
             });
+
+            // https://github.com/vendure-ecommerce/vendure/issues/1273
+            it('adjustOrderLine when saleable stock changes to zero', async () => {
+                await adminClient.query<UpdateProductVariants.Mutation, UpdateProductVariants.Variables>(
+                    UPDATE_PRODUCT_VARIANTS,
+                    {
+                        input: [
+                            {
+                                id: variant7Id,
+                                stockOnHand: 10,
+                            },
+                        ],
+                    },
+                );
+
+                await shopClient.asAnonymousUser();
+                const { addItemToOrder: add1 } = await shopClient.query<
+                    AddItemToOrder.Mutation,
+                    AddItemToOrder.Variables
+                >(ADD_ITEM_TO_ORDER, {
+                    productVariantId: variant7Id,
+                    quantity: 1,
+                });
+                orderGuard.assertSuccess(add1);
+                expect(add1.lines.length).toBe(1);
+
+                await adminClient.query<UpdateProductVariants.Mutation, UpdateProductVariants.Variables>(
+                    UPDATE_PRODUCT_VARIANTS,
+                    {
+                        input: [
+                            {
+                                id: variant7Id,
+                                stockOnHand: 0,
+                            },
+                        ],
+                    },
+                );
+
+                const { adjustOrderLine: add2 } = await shopClient.query<
+                    AdjustItemQuantity.Mutation,
+                    AdjustItemQuantity.Variables
+                >(ADJUST_ITEM_QUANTITY, {
+                    orderLineId: add1.lines[0].id,
+                    quantity: 2,
+                });
+                orderGuard.assertErrorResult(add2);
+
+                expect(add2.errorCode).toBe(ErrorCode.INSUFFICIENT_STOCK_ERROR);
+
+                const { activeOrder } = await shopClient.query<GetActiveOrder.Query>(GET_ACTIVE_ORDER);
+                expect(activeOrder!.lines.length).toBe(0);
+            });
         });
     });
 
@@ -995,6 +1189,7 @@ describe('Stock control', () => {
                     } as CreateAddressInput,
                 },
             );
+            await setFirstEligibleShippingMethod();
             await shopClient.query<TransitionToState.Mutation, TransitionToState.Variables>(
                 TRANSITION_TO_STATE,
                 {
@@ -1060,4 +1255,24 @@ const UPDATE_STOCK_ON_HAND = gql`
         }
     }
     ${VARIANT_WITH_STOCK_FRAGMENT}
+`;
+
+export const TRANSITION_FULFILLMENT_TO_STATE = gql`
+    mutation TransitionFulfillmentToState($id: ID!, $state: String!) {
+        transitionFulfillmentToState(id: $id, state: $state) {
+            ... on Fulfillment {
+                id
+                state
+                nextStates
+                createdAt
+            }
+            ... on ErrorResult {
+                errorCode
+                message
+            }
+            ... on FulfillmentStateTransitionError {
+                transitionError
+            }
+        }
+    }
 `;

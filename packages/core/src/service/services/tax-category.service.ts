@@ -10,14 +10,22 @@ import { ID } from '@vendure/common/lib/shared-types';
 import { RequestContext } from '../../api/common/request-context';
 import { EntityNotFoundError } from '../../common/error/errors';
 import { assertFound } from '../../common/utils';
+import { TransactionalConnection } from '../../connection/transactional-connection';
 import { TaxCategory } from '../../entity/tax-category/tax-category.entity';
 import { TaxRate } from '../../entity/tax-rate/tax-rate.entity';
+import { EventBus } from '../../event-bus';
+import { TaxCategoryEvent } from '../../event-bus/events/tax-category-event';
 import { patchEntity } from '../helpers/utils/patch-entity';
-import { TransactionalConnection } from '../transaction/transactional-connection';
 
+/**
+ * @description
+ * Contains methods relating to {@link TaxCategory} entities.
+ *
+ * @docsCategory services
+ */
 @Injectable()
 export class TaxCategoryService {
-    constructor(private connection: TransactionalConnection) {}
+    constructor(private connection: TransactionalConnection, private eventBus: EventBus) {}
 
     findAll(ctx: RequestContext): Promise<TaxCategory[]> {
         return this.connection.getRepository(ctx, TaxCategory).find();
@@ -35,6 +43,7 @@ export class TaxCategoryService {
                 .update({ isDefault: true }, { isDefault: false });
         }
         const newTaxCategory = await this.connection.getRepository(ctx, TaxCategory).save(taxCategory);
+        this.eventBus.publish(new TaxCategoryEvent(ctx, newTaxCategory, 'created', input));
         return assertFound(this.findOne(ctx, newTaxCategory.id));
     }
 
@@ -50,6 +59,7 @@ export class TaxCategoryService {
                 .update({ isDefault: true }, { isDefault: false });
         }
         await this.connection.getRepository(ctx, TaxCategory).save(updatedTaxCategory, { reload: false });
+        this.eventBus.publish(new TaxCategoryEvent(ctx, taxCategory, 'updated', input));
         return assertFound(this.findOne(ctx, taxCategory.id));
     }
 
@@ -72,6 +82,7 @@ export class TaxCategoryService {
 
         try {
             await this.connection.getRepository(ctx, TaxCategory).remove(taxCategory);
+            this.eventBus.publish(new TaxCategoryEvent(ctx, taxCategory, 'deleted', id));
             return {
                 result: DeletionResult.DELETED,
             };

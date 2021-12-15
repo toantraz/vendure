@@ -18,16 +18,23 @@ import { idsAreEqual } from '../../common/utils';
 import { ConfigService } from '../../config/config.service';
 import { PaymentMethodEligibilityChecker } from '../../config/payment/payment-method-eligibility-checker';
 import { PaymentMethodHandler } from '../../config/payment/payment-method-handler';
+import { TransactionalConnection } from '../../connection/transactional-connection';
 import { Order } from '../../entity/order/order.entity';
 import { PaymentMethod } from '../../entity/payment-method/payment-method.entity';
 import { EventBus } from '../../event-bus/event-bus';
+import { PaymentMethodEvent } from '../../event-bus/events/payment-method-event';
 import { ConfigArgService } from '../helpers/config-arg/config-arg.service';
 import { ListQueryBuilder } from '../helpers/list-query-builder/list-query-builder';
 import { patchEntity } from '../helpers/utils/patch-entity';
-import { TransactionalConnection } from '../transaction/transactional-connection';
 
 import { ChannelService } from './channel.service';
 
+/**
+ * @description
+ * Contains methods relating to {@link PaymentMethod} entities.
+ *
+ * @docsCategory services
+ */
 @Injectable()
 export class PaymentMethodService {
     constructor(
@@ -65,8 +72,12 @@ export class PaymentMethodService {
                 input.checker,
             );
         }
-        this.channelService.assignToCurrentChannel(paymentMethod, ctx);
-        return this.connection.getRepository(ctx, PaymentMethod).save(paymentMethod);
+        await this.channelService.assignToCurrentChannel(paymentMethod, ctx);
+        const savedPaymentMethod = await this.connection
+            .getRepository(ctx, PaymentMethod)
+            .save(paymentMethod);
+        this.eventBus.publish(new PaymentMethodEvent(ctx, savedPaymentMethod, 'created', input));
+        return savedPaymentMethod;
     }
 
     async update(ctx: RequestContext, input: UpdatePaymentMethodInput): Promise<PaymentMethod> {
@@ -84,6 +95,7 @@ export class PaymentMethodService {
         if (input.handler) {
             paymentMethod.handler = this.configArgService.parseInput('PaymentMethodHandler', input.handler);
         }
+        this.eventBus.publish(new PaymentMethodEvent(ctx, paymentMethod, 'updated', input));
         return this.connection.getRepository(ctx, PaymentMethod).save(updatedPaymentMethod);
     }
 
@@ -109,6 +121,7 @@ export class PaymentMethodService {
             }
             try {
                 await this.connection.getRepository(ctx, PaymentMethod).remove(paymentMethod);
+                this.eventBus.publish(new PaymentMethodEvent(ctx, paymentMethod, 'deleted', paymentMethodId));
                 return {
                     result: DeletionResult.DELETED,
                 };
@@ -123,6 +136,7 @@ export class PaymentMethodService {
             // but will remove from the current channel
             paymentMethod.channels = paymentMethod.channels.filter(c => !idsAreEqual(c.id, ctx.channelId));
             await this.connection.getRepository(ctx, PaymentMethod).save(paymentMethod);
+            this.eventBus.publish(new PaymentMethodEvent(ctx, paymentMethod, 'deleted', paymentMethodId));
             return {
                 result: DeletionResult.DELETED,
             };
@@ -168,6 +182,7 @@ export class PaymentMethodService {
                 description: method.description,
                 isEligible,
                 eligibilityMessage,
+                customFields: method.customFields,
             });
         }
         return results;

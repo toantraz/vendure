@@ -13,17 +13,25 @@ import { RequestContext } from '../../api/common/request-context';
 import { Translated } from '../../common/types/locale-types';
 import { assertFound } from '../../common/utils';
 import { ConfigService } from '../../config/config.service';
+import { TransactionalConnection } from '../../connection/transactional-connection';
 import { Product, ProductVariant } from '../../entity';
 import { FacetValueTranslation } from '../../entity/facet-value/facet-value-translation.entity';
 import { FacetValue } from '../../entity/facet-value/facet-value.entity';
 import { Facet } from '../../entity/facet/facet.entity';
+import { EventBus } from '../../event-bus';
+import { FacetValueEvent } from '../../event-bus/events/facet-value-event';
 import { CustomFieldRelationService } from '../helpers/custom-field-relation/custom-field-relation.service';
 import { TranslatableSaver } from '../helpers/translatable-saver/translatable-saver';
 import { translateDeep } from '../helpers/utils/translate-entity';
-import { TransactionalConnection } from '../transaction/transactional-connection';
 
 import { ChannelService } from './channel.service';
 
+/**
+ * @description
+ * Contains methods relating to {@link FacetValue} entities.
+ *
+ * @docsCategory services
+ */
 @Injectable()
 export class FacetValueService {
     constructor(
@@ -32,6 +40,7 @@ export class FacetValueService {
         private configService: ConfigService,
         private customFieldRelationService: CustomFieldRelationService,
         private channelService: ChannelService,
+        private eventBus: EventBus,
     ) {}
 
     findAll(lang: LanguageCode): Promise<Array<Translated<FacetValue>>> {
@@ -61,6 +70,10 @@ export class FacetValueService {
         );
     }
 
+    /**
+     * @description
+     * Returns all FacetValues belonging to the Facet with the given id.
+     */
     findByFacetId(ctx: RequestContext, id: ID): Promise<Array<Translated<FacetValue>>> {
         return this.connection
             .getRepository(ctx, FacetValue)
@@ -82,17 +95,18 @@ export class FacetValueService {
             input,
             entityType: FacetValue,
             translationType: FacetValueTranslation,
-            beforeSave: fv => {
+            beforeSave: async fv => {
                 fv.facet = facet;
-                this.channelService.assignToCurrentChannel(fv, ctx);
+                await this.channelService.assignToCurrentChannel(fv, ctx);
             },
         });
-        await this.customFieldRelationService.updateRelations(
+        const facetValueWithRelations = await this.customFieldRelationService.updateRelations(
             ctx,
             FacetValue,
             input as CreateFacetValueInput,
             facetValue,
         );
+        this.eventBus.publish(new FacetValueEvent(ctx, facetValueWithRelations, 'created', input));
         return assertFound(this.findOne(ctx, facetValue.id));
     }
 
@@ -104,6 +118,7 @@ export class FacetValueService {
             translationType: FacetValueTranslation,
         });
         await this.customFieldRelationService.updateRelations(ctx, FacetValue, input, facetValue);
+        this.eventBus.publish(new FacetValueEvent(ctx, facetValue, 'updated', input));
         return assertFound(this.findOne(ctx, facetValue.id));
     }
 
@@ -123,6 +138,7 @@ export class FacetValueService {
         } else if (force) {
             const facetValue = await this.connection.getEntityOrThrow(ctx, FacetValue, id);
             await this.connection.getRepository(ctx, FacetValue).remove(facetValue);
+            this.eventBus.publish(new FacetValueEvent(ctx, facetValue, 'deleted', id));
             message = ctx.translate('message.facet-value-force-deleted', i18nVars);
             result = DeletionResult.DELETED;
         } else {
@@ -137,6 +153,7 @@ export class FacetValueService {
     }
 
     /**
+     * @description
      * Checks for usage of the given FacetValues in any Products or Variants, and returns the counts.
      */
     async checkFacetValueUsage(

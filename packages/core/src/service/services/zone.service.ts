@@ -11,30 +11,59 @@ import { ID } from '@vendure/common/lib/shared-types';
 import { unique } from '@vendure/common/lib/unique';
 
 import { RequestContext } from '../../api/common/request-context';
+import { createSelfRefreshingCache, SelfRefreshingCache } from '../../common/self-refreshing-cache';
 import { assertFound } from '../../common/utils';
+import { ConfigService } from '../../config/config.service';
+import { TransactionalConnection } from '../../connection/transactional-connection';
 import { Channel, TaxRate } from '../../entity';
 import { Country } from '../../entity/country/country.entity';
 import { Zone } from '../../entity/zone/zone.entity';
+import { EventBus } from '../../event-bus';
+import { ZoneEvent } from '../../event-bus/events/zone-event';
+import { ZoneMembersEvent } from '../../event-bus/events/zone-members-event';
 import { patchEntity } from '../helpers/utils/patch-entity';
 import { translateDeep } from '../helpers/utils/translate-entity';
-import { TransactionalConnection } from '../transaction/transactional-connection';
 
+/**
+ * @description
+ * Contains methods relating to {@link Zone} entities.
+ *
+ * @docsCategory services
+ */
 @Injectable()
 export class ZoneService {
     /**
      * We cache all Zones to avoid hitting the DB many times per request.
      */
-    private zones: Zone[] = [];
-    constructor(private connection: TransactionalConnection) {}
+    private zones: SelfRefreshingCache<Zone[], [RequestContext]>;
+    constructor(
+        private connection: TransactionalConnection,
+        private configService: ConfigService,
+        private eventBus: EventBus,
+    ) {}
 
-    initZones() {
-        return this.updateZonesCache();
+    /** @internal */
+    async initZones() {
+        this.zones = await createSelfRefreshingCache({
+            name: 'ZoneService.zones',
+            ttl: this.configService.entityOptions.zoneCacheTtl,
+            refresh: {
+                fn: ctx =>
+                    this.connection.getRepository(ctx, Zone).find({
+                        relations: ['members'],
+                    }),
+                defaultArgs: [RequestContext.empty()],
+            },
+        });
     }
 
-    findAll(ctx: RequestContext): Zone[] {
-        return this.zones.map(zone => {
-            zone.members = zone.members.map(country => translateDeep(country, ctx.languageCode));
-            return zone;
+    async findAll(ctx: RequestContext): Promise<Zone[]> {
+        return this.zones.memoize([ctx.languageCode], [ctx], (zones, languageCode) => {
+            return zones.map((zone, i) => {
+                const cloneZone = { ...zone };
+                cloneZone.members = zone.members.map(country => translateDeep(country, languageCode));
+                return cloneZone;
+            });
         });
     }
 
@@ -58,7 +87,8 @@ export class ZoneService {
             zone.members = await this.getCountriesFromIds(ctx, input.memberIds);
         }
         const newZone = await this.connection.getRepository(ctx, Zone).save(zone);
-        await this.updateZonesCache(ctx);
+        await this.zones.refresh(ctx);
+        this.eventBus.publish(new ZoneEvent(ctx, newZone, 'created', input));
         return assertFound(this.findOne(ctx, newZone.id));
     }
 
@@ -66,7 +96,8 @@ export class ZoneService {
         const zone = await this.connection.getEntityOrThrow(ctx, Zone, input.id);
         const updatedZone = patchEntity(zone, input);
         await this.connection.getRepository(ctx, Zone).save(updatedZone, { reload: false });
-        await this.updateZonesCache(ctx);
+        await this.zones.refresh(ctx);
+        this.eventBus.publish(new ZoneEvent(ctx, zone, 'updated', input));
         return assertFound(this.findOne(ctx, zone.id));
     }
 
@@ -104,7 +135,8 @@ export class ZoneService {
             };
         } else {
             await this.connection.getRepository(ctx, Zone).remove(zone);
-            await this.updateZonesCache(ctx);
+            await this.zones.refresh(ctx);
+            this.eventBus.publish(new ZoneEvent(ctx, zone, 'deleted', id));
             return {
                 result: DeletionResult.DELETED,
                 message: '',
@@ -112,42 +144,37 @@ export class ZoneService {
         }
     }
 
-    async addMembersToZone(ctx: RequestContext, input: MutationAddMembersToZoneArgs): Promise<Zone> {
-        const countries = await this.getCountriesFromIds(ctx, input.memberIds);
-        const zone = await this.connection.getEntityOrThrow(ctx, Zone, input.zoneId, {
+    async addMembersToZone(
+        ctx: RequestContext,
+        { memberIds, zoneId }: MutationAddMembersToZoneArgs,
+    ): Promise<Zone> {
+        const countries = await this.getCountriesFromIds(ctx, memberIds);
+        const zone = await this.connection.getEntityOrThrow(ctx, Zone, zoneId, {
             relations: ['members'],
         });
         const members = unique(zone.members.concat(countries), 'id');
         zone.members = members;
         await this.connection.getRepository(ctx, Zone).save(zone, { reload: false });
-        await this.updateZonesCache(ctx);
+        await this.zones.refresh(ctx);
+        this.eventBus.publish(new ZoneMembersEvent(ctx, zone, 'assigned', memberIds));
         return assertFound(this.findOne(ctx, zone.id));
     }
 
     async removeMembersFromZone(
         ctx: RequestContext,
-        input: MutationRemoveMembersFromZoneArgs,
+        { memberIds, zoneId }: MutationRemoveMembersFromZoneArgs,
     ): Promise<Zone> {
-        const zone = await this.connection.getEntityOrThrow(ctx, Zone, input.zoneId, {
+        const zone = await this.connection.getEntityOrThrow(ctx, Zone, zoneId, {
             relations: ['members'],
         });
-        zone.members = zone.members.filter(country => !input.memberIds.includes(country.id));
+        zone.members = zone.members.filter(country => !memberIds.includes(country.id));
         await this.connection.getRepository(ctx, Zone).save(zone, { reload: false });
-        await this.updateZonesCache(ctx);
+        await this.zones.refresh(ctx);
+        this.eventBus.publish(new ZoneMembersEvent(ctx, zone, 'removed', memberIds));
         return assertFound(this.findOne(ctx, zone.id));
     }
 
     private getCountriesFromIds(ctx: RequestContext, ids: ID[]): Promise<Country[]> {
         return this.connection.getRepository(ctx, Country).findByIds(ids);
-    }
-
-    /**
-     * TODO: This is not good for multi-instance deployments. A better solution will
-     * need to be found without adversely affecting performance.
-     */
-    async updateZonesCache(ctx?: RequestContext) {
-        this.zones = await this.connection.getRepository(ctx, Zone).find({
-            relations: ['members'],
-        });
     }
 }

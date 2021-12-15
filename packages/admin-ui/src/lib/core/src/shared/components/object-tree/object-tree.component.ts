@@ -1,7 +1,15 @@
 import { ChangeDetectionStrategy, Component, Input, OnInit, Optional, SkipSelf } from '@angular/core';
 
 /**
+ * @description
  * This component displays a plain JavaScript object as an expandable tree.
+ *
+ * @example
+ * ```HTML
+ * <vdr-object-tree [value]="payment.metadata"></vdr-object-tree>
+ * ```
+ *
+ * @docsCategory components
  */
 @Component({
     selector: 'vdr-object-tree',
@@ -35,7 +43,7 @@ export class ObjectTreeComponent implements OnInit {
     }
 
     private getEntries(inputValue: { [key: string]: any } | string): Array<{ key: string; value: any }> {
-        if (typeof inputValue === 'string') {
+        if (!this.isObject(inputValue)) {
             return [{ key: '', value: inputValue }];
         }
         return Object.entries(inputValue).map(([key, value]) => ({ key, value }));

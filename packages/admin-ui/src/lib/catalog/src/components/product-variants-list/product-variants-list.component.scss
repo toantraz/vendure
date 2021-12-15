@@ -107,6 +107,7 @@
 
     .facets {
         display: flex;
+        flex-wrap: wrap;
         align-items: center;
     }
 
@@ -154,9 +155,3 @@
     opacity: 0.5;
 }
 
-.table-footer {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    margin-top: 6px;
-}

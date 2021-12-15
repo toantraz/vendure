@@ -30,6 +30,7 @@ export function generateListOptions(typeDefsOrSchema: string | GraphQLSchema): G
     if (!queryType) {
         return schema;
     }
+    const logicalOperatorEnum = schema.getType('LogicalOperator');
     const objectTypes = Object.values(schema.getTypeMap()).filter(isObjectType);
     const allFields = objectTypes.reduce((fields, type) => {
         const typeFields = Object.values(type.getFields()).filter(f => isListQueryType(f.type));
@@ -49,10 +50,25 @@ export function generateListOptions(typeDefsOrSchema: string | GraphQLSchema): G
             const generatedListOptions = new GraphQLInputObjectType({
                 name: `${targetTypeName}ListOptions`,
                 fields: {
-                    skip: { type: GraphQLInt },
-                    take: { type: GraphQLInt },
-                    sort: { type: sortParameter },
-                    filter: { type: filterParameter },
+                    skip: {
+                        type: GraphQLInt,
+                        description: 'Skips the first n results, for use in pagination',
+                    },
+                    take: { type: GraphQLInt, description: 'Takes n results, for use in pagination' },
+                    sort: {
+                        type: sortParameter,
+                        description: 'Specifies which properties to sort the results by',
+                    },
+                    filter: { type: filterParameter, description: 'Allows the results to be filtered' },
+                    ...(logicalOperatorEnum
+                        ? {
+                              filterOperator: {
+                                  type: logicalOperatorEnum as GraphQLEnumType,
+                                  description:
+                                      'Specifies whether multiple "filter" arguments should be combines with a logical AND or OR operation. Defaults to AND.',
+                              },
+                          }
+                        : {}),
                     ...(existingListOptions ? existingListOptions.getFields() : {}),
                 },
             });
@@ -124,7 +140,8 @@ function createSortParameter(schema: GraphQLSchema, targetType: GraphQLObjectTyp
 function createFilterParameter(schema: GraphQLSchema, targetType: GraphQLObjectType): GraphQLInputObjectType {
     const fields: Array<GraphQLField<any, any> | GraphQLInputField> = Object.values(targetType.getFields());
     const targetTypeName = targetType.name;
-    const { StringOperators, BooleanOperators, NumberOperators, DateOperators } = getCommonTypes(schema);
+    const { StringOperators, BooleanOperators, NumberOperators, DateOperators, IDOperators } =
+        getCommonTypes(schema);
 
     const inputName = `${targetTypeName}FilterParameter`;
     const existingInput = schema.getType(inputName);
@@ -168,6 +185,8 @@ function createFilterParameter(schema: GraphQLSchema, targetType: GraphQLObjectT
                 return NumberOperators;
             case 'DateTime':
                 return DateOperators;
+            case 'ID':
+                return IDOperators;
             default:
                 return;
         }
@@ -182,6 +201,7 @@ function getCommonTypes(schema: GraphQLSchema) {
     const NumberOperators = schema.getType('NumberOperators') as GraphQLInputType | null;
     const DateRange = schema.getType('DateRange') as GraphQLInputType | null;
     const DateOperators = schema.getType('DateOperators') as GraphQLInputType | null;
+    const IDOperators = schema.getType('IDOperators') as GraphQLInputType | null;
     if (
         !SortOrder ||
         !StringOperators ||
@@ -189,7 +209,8 @@ function getCommonTypes(schema: GraphQLSchema) {
         !NumberRange ||
         !NumberOperators ||
         !DateRange ||
-        !DateOperators
+        !DateOperators ||
+        !IDOperators
     ) {
         throw new Error(`A common type was not defined`);
     }
@@ -199,6 +220,7 @@ function getCommonTypes(schema: GraphQLSchema) {
         BooleanOperators,
         NumberOperators,
         DateOperators,
+        IDOperators,
     };
 }
 

@@ -15,6 +15,7 @@ import { omit } from '@vendure/common/lib/omit';
 import { ID, PaginatedList, Type } from '@vendure/common/lib/shared-types';
 import { notNullOrUndefined } from '@vendure/common/lib/shared-utils';
 import { unique } from '@vendure/common/lib/unique';
+import { ReadStream as FSReadStream } from 'fs';
 import { ReadStream } from 'fs-extra';
 import mime from 'mime-types';
 import path from 'path';
@@ -29,6 +30,7 @@ import { ChannelAware } from '../../common/types/common-types';
 import { getAssetType, idsAreEqual } from '../../common/utils';
 import { ConfigService } from '../../config/config.service';
 import { Logger } from '../../config/logger/vendure-logger';
+import { TransactionalConnection } from '../../connection/transactional-connection';
 import { Asset } from '../../entity/asset/asset.entity';
 import { OrderableAsset } from '../../entity/asset/orderable-asset.entity';
 import { VendureEntity } from '../../entity/base/base.entity';
@@ -41,7 +43,6 @@ import { AssetEvent } from '../../event-bus/events/asset-event';
 import { CustomFieldRelationService } from '../helpers/custom-field-relation/custom-field-relation.service';
 import { ListQueryBuilder } from '../helpers/list-query-builder/list-query-builder';
 import { patchEntity } from '../helpers/utils/patch-entity';
-import { TransactionalConnection } from '../transaction/transactional-connection';
 
 import { ChannelService } from './channel.service';
 import { RoleService } from './role.service';
@@ -60,6 +61,12 @@ export interface EntityAssetInput {
     featuredAssetId?: ID | null;
 }
 
+/**
+ * @description
+ * Contains methods relating to {@link Asset} entities.
+ *
+ * @docsCategory services
+ */
 @Injectable()
 export class AssetService {
     private permittedMimeTypes: Array<{ type: string; subtype: string }> = [];
@@ -243,13 +250,13 @@ export class AssetService {
             stream.on('error', (err: any) => {
                 reject(err);
             });
-            const result = await this.createAssetInternal(
-                ctx,
-                stream,
-                filename,
-                mimetype,
-                input.customFields,
-            );
+            let result: Asset | MimeTypeError;
+            try {
+                result = await this.createAssetInternal(ctx, stream, filename, mimetype, input.customFields);
+            } catch (e) {
+                reject(e);
+                return;
+            }
             if (isGraphQlErrorResult(result)) {
                 resolve(result);
                 return;
@@ -260,7 +267,7 @@ export class AssetService {
                 result.tags = tags;
                 await this.connection.getRepository(ctx, Asset).save(result);
             }
-            this.eventBus.publish(new AssetEvent(ctx, result, 'created'));
+            this.eventBus.publish(new AssetEvent(ctx, result, 'created', input));
             resolve(result);
         });
     }
@@ -278,7 +285,7 @@ export class AssetService {
             asset.tags = await this.tagService.valuesToTags(ctx, input.tags);
         }
         const updatedAsset = await this.connection.getRepository(ctx, Asset).save(asset);
-        this.eventBus.publish(new AssetEvent(ctx, updatedAsset, 'updated'));
+        this.eventBus.publish(new AssetEvent(ctx, updatedAsset, 'updated', input));
         return updatedAsset;
     }
 
@@ -387,7 +394,8 @@ export class AssetService {
         stream: ReadStream | Readable,
         maybeFilePath?: string,
     ): Promise<CreateAssetResult> {
-        const filePath = stream instanceof ReadStream ? stream.path : maybeFilePath;
+        const filePath =
+            stream instanceof ReadStream || stream instanceof FSReadStream ? stream.path : maybeFilePath;
         if (typeof filePath === 'string') {
             const filename = path.basename(filePath);
             const mimetype = mime.lookup(filename) || 'application/octet-stream';
@@ -413,7 +421,7 @@ export class AssetService {
             } catch (e) {
                 Logger.error(`error.could-not-delete-asset-file`, undefined, e.stack);
             }
-            this.eventBus.publish(new AssetEvent(ctx, deletedAsset, 'deleted'));
+            this.eventBus.publish(new AssetEvent(ctx, deletedAsset, 'deleted', deletedAsset.id));
         }
         return {
             result: DeletionResult.DELETED,
@@ -453,7 +461,7 @@ export class AssetService {
         try {
             preview = await assetPreviewStrategy.generatePreviewImage(ctx, mimetype, sourceFile);
         } catch (e) {
-            Logger.error(`Could not create Asset preview image: ${e.message}`);
+            Logger.error(`Could not create Asset preview image: ${e.message}`, undefined, e.stack);
             throw e;
         }
         const previewFileIdentifier = await assetStorageStrategy.writeFileFromBuffer(
@@ -475,7 +483,7 @@ export class AssetService {
             focalPoint: null,
             customFields,
         });
-        this.channelService.assignToCurrentChannel(asset, ctx);
+        await this.channelService.assignToCurrentChannel(asset, ctx);
         return this.connection.getRepository(ctx, Asset).save(asset);
     }
 

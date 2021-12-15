@@ -29,6 +29,7 @@ import {
 import {
     CREATE_SHIPPING_METHOD,
     DELETE_SHIPPING_METHOD,
+    GET_SHIPPING_METHOD_LIST,
     UPDATE_SHIPPING_METHOD,
 } from './graphql/shared-definitions';
 
@@ -53,7 +54,7 @@ const calculatorWithMetadata = new ShippingCalculator({
 
 describe('ShippingMethod resolver', () => {
     const { server, adminClient, shopClient } = createTestEnvironment({
-        ...testConfig,
+        ...testConfig(),
         shippingOptions: {
             shippingEligibilityCheckers: [defaultShippingEligibilityChecker],
             shippingCalculators: [defaultShippingCalculator, calculatorWithMetadata],
@@ -338,18 +339,6 @@ describe('ShippingMethod resolver', () => {
         expect(listResult2.shippingMethods.items.map(i => i.id)).toEqual(['T_1', 'T_2']);
     });
 });
-
-const GET_SHIPPING_METHOD_LIST = gql`
-    query GetShippingMethodList {
-        shippingMethods {
-            items {
-                ...ShippingMethod
-            }
-            totalItems
-        }
-    }
-    ${SHIPPING_METHOD_FRAGMENT}
-`;
 
 const GET_SHIPPING_METHOD = gql`
     query GetShippingMethod($id: ID!) {

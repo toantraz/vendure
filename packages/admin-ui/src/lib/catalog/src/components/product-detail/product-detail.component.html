@@ -45,11 +45,7 @@
     </vdr-ab-right>
 </vdr-action-bar>
 
-<form
-    class="form"
-    [formGroup]="detailForm"
-    *ngIf="product$ | async as product"
->
+<form class="form" [formGroup]="detailForm" *ngIf="product$ | async as product">
     <button type="submit" hidden x-data="prevents enter key from triggering other buttons"></button>
     <clr-tabs>
         <clr-tab>
@@ -111,7 +107,7 @@
                                     />
                                     <label>{{
                                         'catalog.auto-update-product-variant-name' | translate
-                                        }}</label>
+                                    }}</label>
                                 </clr-checkbox-wrapper>
                             </div>
                             <vdr-form-field
@@ -134,33 +130,18 @@
 
                             <section formGroupName="customFields" *ngIf="customFields.length">
                                 <label>{{ 'common.custom-fields' | translate }}</label>
-                                <ng-container *ngFor="let customField of customFields">
-                                    <vdr-custom-field-control
-                                        *ngIf="customFieldIsSet(customField.name)"
-                                        entityName="Product"
-                                        [customFieldsFormGroup]="detailForm.get(['product', 'customFields'])"
-                                        [customField]="customField"
-                                        [readonly]="!(['UpdateCatalog', 'UpdateProduct'] | hasPermission)"
-                                    ></vdr-custom-field-control>
-                                </ng-container>
+                                <vdr-tabbed-custom-fields
+                                    entityName="Product"
+                                    [customFields]="customFields"
+                                    [customFieldsFormGroup]="detailForm.get(['product', 'customFields'])"
+                                    [readonly]="!(['UpdateCatalog', 'UpdateProduct'] | hasPermission)"
+                                ></vdr-tabbed-custom-fields>
                             </section>
-
-                            <div class="facets">
-                                <vdr-facet-value-chip
-                                    *ngFor="let facetValue of facetValues$ | async"
-                                    [facetValue]="facetValue"
-                                    [removable]="['UpdateCatalog', 'UpdateProduct'] | hasPermission"
-                                    (remove)="removeProductFacetValue(facetValue.id)"
-                                ></vdr-facet-value-chip>
-                                <button
-                                    class="btn btn-sm btn-secondary"
-                                    *vdrIfPermissions="['UpdateCatalog', 'UpdateProduct']"
-                                    (click)="selectProductFacetValue()"
-                                >
-                                    <clr-icon shape="plus"></clr-icon>
-                                    {{ 'catalog.add-facets' | translate }}
-                                </button>
-                            </div>
+                            <vdr-custom-detail-component-host
+                                locationId="product-detail"
+                                [entity$]="entity$"
+                                [detailForm]="detailForm"
+                            ></vdr-custom-detail-component-host>
                         </section>
                     </div>
                     <div class="clr-col-md-auto">
@@ -169,6 +150,22 @@
                             [featuredAsset]="assetChanges.featuredAsset || product.featuredAsset"
                             (change)="assetChanges = $event"
                         ></vdr-product-assets>
+                        <div class="facets">
+                            <vdr-facet-value-chip
+                                *ngFor="let facetValue of facetValues$ | async"
+                                [facetValue]="facetValue"
+                                [removable]="['UpdateCatalog', 'UpdateProduct'] | hasPermission"
+                                (remove)="removeProductFacetValue(facetValue.id)"
+                            ></vdr-facet-value-chip>
+                            <button
+                                class="btn btn-sm btn-secondary"
+                                *vdrIfPermissions="['UpdateCatalog', 'UpdateProduct']"
+                                (click)="selectProductFacetValue()"
+                            >
+                                <clr-icon shape="plus"></clr-icon>
+                                {{ 'catalog.add-facets' | translate }}
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -225,9 +222,24 @@
                         </a>
                     </div>
 
+                    <div class="pagination-row mt4" *ngIf="10 < (paginationConfig$ | async)?.totalItems">
+                        <vdr-items-per-page-controls
+                            [itemsPerPage]="itemsPerPage$ | async"
+                            (itemsPerPageChange)="setItemsPerPage($event)"
+                        ></vdr-items-per-page-controls>
+
+                        <vdr-pagination-controls
+                            [id]="(paginationConfig$ | async)?.id"
+                            [currentPage]="currentPage$ | async"
+                            [itemsPerPage]="itemsPerPage$ | async"
+                            (pageChange)="setPage($event)"
+                        ></vdr-pagination-controls>
+                    </div>
+
                     <vdr-product-variants-table
                         *ngIf="variantDisplayMode === 'table'"
                         [variants]="variants$ | async"
+                        [paginationConfig]="paginationConfig$ | async"
                         [optionGroups]="product.optionGroups"
                         [channelPriceIncludesTax]="channelPriceIncludesTax$ | async"
                         [productVariantsFormArray]="detailForm.get('variants')"
@@ -236,6 +248,7 @@
                     <vdr-product-variants-list
                         *ngIf="variantDisplayMode === 'card'"
                         [variants]="variants$ | async"
+                        [paginationConfig]="paginationConfig$ | async"
                         [channelPriceIncludesTax]="channelPriceIncludesTax$ | async"
                         [facets]="facets$ | async"
                         [optionGroups]="product.optionGroups"
@@ -253,6 +266,19 @@
                         (selectFacetValueClick)="selectVariantFacetValue($event)"
                     ></vdr-product-variants-list>
                 </section>
+                <div class="pagination-row mt4" *ngIf="10 < (paginationConfig$ | async)?.totalItems">
+                    <vdr-items-per-page-controls
+                        [itemsPerPage]="itemsPerPage$ | async"
+                        (itemsPerPageChange)="setItemsPerPage($event)"
+                    ></vdr-items-per-page-controls>
+
+                    <vdr-pagination-controls
+                        [id]="(paginationConfig$ | async)?.id"
+                        [currentPage]="currentPage$ | async"
+                        [itemsPerPage]="itemsPerPage$ | async"
+                        (pageChange)="setPage($event)"
+                    ></vdr-pagination-controls>
+                </div>
             </clr-tab-content>
         </clr-tab>
     </clr-tabs>

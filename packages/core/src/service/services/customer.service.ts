@@ -36,6 +36,7 @@ import { ListQueryOptions } from '../../common/types/common-types';
 import { assertFound, idsAreEqual, normalizeEmailAddress } from '../../common/utils';
 import { NATIVE_AUTH_STRATEGY_NAME } from '../../config/auth/native-authentication-strategy';
 import { ConfigService } from '../../config/config.service';
+import { TransactionalConnection } from '../../connection/transactional-connection';
 import { Address } from '../../entity/address/address.entity';
 import { NativeAuthenticationMethod } from '../../entity/authentication-method/native-authentication-method.entity';
 import { Channel } from '../../entity/channel/channel.entity';
@@ -45,23 +46,30 @@ import { HistoryEntry } from '../../entity/history-entry/history-entry.entity';
 import { User } from '../../entity/user/user.entity';
 import { EventBus } from '../../event-bus/event-bus';
 import { AccountRegistrationEvent } from '../../event-bus/events/account-registration-event';
+import { AccountVerifiedEvent } from '../../event-bus/events/account-verified-event';
 import { CustomerAddressEvent } from '../../event-bus/events/customer-address-event';
 import { CustomerEvent } from '../../event-bus/events/customer-event';
 import { IdentifierChangeEvent } from '../../event-bus/events/identifier-change-event';
 import { IdentifierChangeRequestEvent } from '../../event-bus/events/identifier-change-request-event';
 import { PasswordResetEvent } from '../../event-bus/events/password-reset-event';
+import { PasswordResetVerifiedEvent } from '../../event-bus/events/password-reset-verified-event';
 import { CustomFieldRelationService } from '../helpers/custom-field-relation/custom-field-relation.service';
 import { ListQueryBuilder } from '../helpers/list-query-builder/list-query-builder';
 import { addressToLine } from '../helpers/utils/address-to-line';
 import { patchEntity } from '../helpers/utils/patch-entity';
 import { translateDeep } from '../helpers/utils/translate-entity';
-import { TransactionalConnection } from '../transaction/transactional-connection';
 
 import { ChannelService } from './channel.service';
 import { CountryService } from './country.service';
 import { HistoryService } from './history.service';
 import { UserService } from './user.service';
 
+/**
+ * @description
+ * Contains methods relating to {@link Customer} entities.
+ *
+ * @docsCategory services
+ */
 @Injectable()
 export class CustomerService {
     constructor(
@@ -97,6 +105,12 @@ export class CustomerService {
         });
     }
 
+    /**
+     * @description
+     * Returns the Customer entity associated with the given userId, if one exists.
+     * Setting `filterOnChannel` to `true` will limit the results to Customers which are assigned
+     * to the current active Channel only.
+     */
     findOneByUserId(ctx: RequestContext, userId: ID, filterOnChannel = true): Promise<Customer | undefined> {
         let query = this.connection
             .getRepository(ctx, Customer)
@@ -111,6 +125,10 @@ export class CustomerService {
         return query.getOne();
     }
 
+    /**
+     * @description
+     * Returns all {@link Address} entities associated with the specified Customer.
+     */
     findAddressesByCustomerId(ctx: RequestContext, customerId: ID): Promise<Address[]> {
         return this.connection
             .getRepository(ctx, Address)
@@ -127,6 +145,10 @@ export class CustomerService {
             });
     }
 
+    /**
+     * @description
+     * Returns a list of all {@link CustomerGroup} entities.
+     */
     async getCustomerGroups(ctx: RequestContext, customerId: ID): Promise<CustomerGroup[]> {
         const customerWithGroups = await this.connection.findOneInChannel(
             ctx,
@@ -147,6 +169,17 @@ export class CustomerService {
         }
     }
 
+    /**
+     * @description
+     * Creates a new Customer, including creation of a new User with the special `customer` Role.
+     *
+     * If the `password` argument is specified, the Customer will be immediately verified. If not,
+     * then an {@link AccountRegistrationEvent} is published, so that the customer can have their
+     * email address verified and set their password in a later step using the `verifyCustomerEmailAddress()`
+     * method.
+     *
+     * This method is intended to be used in admin-created Customer flows.
+     */
     async create(
         ctx: RequestContext,
         input: CreateCustomerInput,
@@ -208,7 +241,7 @@ export class CustomerService {
         } else {
             this.eventBus.publish(new AccountRegistrationEvent(ctx, customer.user));
         }
-        this.channelService.assignToCurrentChannel(customer, ctx);
+        await this.channelService.assignToCurrentChannel(customer, ctx);
         const createdCustomer = await this.connection.getRepository(ctx, Customer).save(customer);
         await this.customFieldRelationService.updateRelations(ctx, Customer, input, createdCustomer);
         await this.historyService.createHistoryEntryForCustomer({
@@ -230,7 +263,7 @@ export class CustomerService {
                 },
             });
         }
-        this.eventBus.publish(new CustomerEvent(ctx, createdCustomer, 'created'));
+        this.eventBus.publish(new CustomerEvent(ctx, createdCustomer, 'created', input));
         return createdCustomer;
     }
 
@@ -295,10 +328,18 @@ export class CustomerService {
                 input,
             },
         });
-        this.eventBus.publish(new CustomerEvent(ctx, customer, 'updated'));
+        this.eventBus.publish(new CustomerEvent(ctx, customer, 'updated', input));
         return assertFound(this.findOne(ctx, customer.id));
     }
 
+    /**
+     * @description
+     * Registers a new Customer account with the {@link NativeAuthenticationStrategy} and starts
+     * the email verification flow (unless {@link AuthOptions} `requireVerification` is set to `false`)
+     * by publishing an {@link AccountRegistrationEvent}.
+     *
+     * This method is intended to be used in storefront Customer-creation flows.
+     */
     async registerCustomerAccount(
         ctx: RequestContext,
         input: RegisterCustomerInput,
@@ -376,6 +417,11 @@ export class CustomerService {
         return { success: true };
     }
 
+    /**
+     * @description
+     * Refreshes a stale email address verification token by generating a new one and
+     * publishing a {@link AccountRegistrationEvent}.
+     */
     async refreshVerificationToken(ctx: RequestContext, emailAddress: string): Promise<void> {
         const user = await this.userService.getUserByEmailAddress(ctx, emailAddress);
         if (user) {
@@ -386,6 +432,11 @@ export class CustomerService {
         }
     }
 
+    /**
+     * @description
+     * Given a valid verification token which has been published in an {@link AccountRegistrationEvent}, this
+     * method is used to set the Customer as `verified` as part of the account registration flow.
+     */
     async verifyCustomerEmailAddress(
         ctx: RequestContext,
         verificationToken: string,
@@ -410,9 +461,16 @@ export class CustomerService {
                 strategy: NATIVE_AUTH_STRATEGY_NAME,
             },
         });
-        return assertFound(this.findOneByUserId(ctx, result.id));
+        const user = assertFound(this.findOneByUserId(ctx, result.id));
+        this.eventBus.publish(new AccountVerifiedEvent(ctx, customer));
+        return user;
     }
 
+    /**
+     * @description
+     * Publishes a new {@link PasswordResetEvent} for the given email address. This event creates
+     * a token which can be used in the `resetPassword()` method.
+     */
     async requestPasswordReset(ctx: RequestContext, emailAddress: string): Promise<void> {
         const user = await this.userService.setPasswordResetToken(ctx, emailAddress);
         if (user) {
@@ -430,6 +488,11 @@ export class CustomerService {
         }
     }
 
+    /**
+     * @description
+     * Given a valid password reset token created by a call to the `requestPasswordReset()` method,
+     * this method will change the Customer's password to that given as the `password` argument.
+     */
     async resetPassword(
         ctx: RequestContext,
         passwordResetToken: string,
@@ -449,9 +512,16 @@ export class CustomerService {
             type: HistoryEntryType.CUSTOMER_PASSWORD_RESET_VERIFIED,
             data: {},
         });
+        this.eventBus.publish(new PasswordResetVerifiedEvent(ctx, result));
         return result;
     }
 
+    /**
+     * @description
+     * Publishes a {@link IdentifierChangeRequestEvent} for the given User. This event contains a token
+     * which is then used in the `updateEmailAddress()` method to change the email address of the User &
+     * Customer.
+     */
     async requestUpdateEmailAddress(
         ctx: RequestContext,
         userId: ID,
@@ -507,6 +577,11 @@ export class CustomerService {
         }
     }
 
+    /**
+     * @description
+     * Given a valid email update token published in a {@link IdentifierChangeRequestEvent}, this method
+     * will update the Customer & User email address.
+     */
     async updateEmailAddress(
         ctx: RequestContext,
         token: string,
@@ -539,6 +614,7 @@ export class CustomerService {
     }
 
     /**
+     * @description
      * For guest checkouts, we assume that a matching email address is the same customer.
      */
     async createOrUpdate(
@@ -564,12 +640,16 @@ export class CustomerService {
             customer.channels.push(await this.connection.getEntityOrThrow(ctx, Channel, ctx.channelId));
         } else {
             customer = await this.connection.getRepository(ctx, Customer).save(new Customer(input));
-            this.channelService.assignToCurrentChannel(customer, ctx);
-            this.eventBus.publish(new CustomerEvent(ctx, customer, 'created'));
+            await this.channelService.assignToCurrentChannel(customer, ctx);
+            this.eventBus.publish(new CustomerEvent(ctx, customer, 'created', input));
         }
         return this.connection.getRepository(ctx, Customer).save(customer);
     }
 
+    /**
+     * @description
+     * Creates a new {@link Address} for the given Customer.
+     */
     async createAddress(ctx: RequestContext, customerId: ID, input: CreateAddressInput): Promise<Address> {
         const customer = await this.connection.getEntityOrThrow(ctx, Customer, customerId, {
             where: { deletedAt: null },
@@ -593,7 +673,7 @@ export class CustomerService {
             type: HistoryEntryType.CUSTOMER_ADDRESS_CREATED,
             data: { address: addressToLine(createdAddress) },
         });
-        this.eventBus.publish(new CustomerAddressEvent(ctx, createdAddress, 'created'));
+        this.eventBus.publish(new CustomerAddressEvent(ctx, createdAddress, 'created', input));
         return createdAddress;
     }
 
@@ -601,7 +681,7 @@ export class CustomerService {
         const address = await this.connection.getEntityOrThrow(ctx, Address, input.id, {
             relations: ['customer', 'country'],
         });
-        const customer = await this.connection.findOneInChannel(
+        const customer = await this.connection.findOneInChannel<Customer>(
             ctx,
             Customer,
             address.customer.id,
@@ -629,7 +709,7 @@ export class CustomerService {
                 input,
             },
         });
-        this.eventBus.publish(new CustomerAddressEvent(ctx, updatedAddress, 'updated'));
+        this.eventBus.publish(new CustomerAddressEvent(ctx, updatedAddress, 'updated', input));
         return updatedAddress;
     }
 
@@ -657,7 +737,7 @@ export class CustomerService {
             },
         });
         await this.connection.getRepository(ctx, Address).remove(address);
-        this.eventBus.publish(new CustomerAddressEvent(ctx, address, 'deleted'));
+        this.eventBus.publish(new CustomerAddressEvent(ctx, address, 'deleted', id));
         return true;
     }
 
@@ -670,7 +750,7 @@ export class CustomerService {
             .update({ id: customerId }, { deletedAt: new Date() });
         // tslint:disable-next-line:no-non-null-assertion
         await this.userService.softDelete(ctx, customer.user!.id);
-        this.eventBus.publish(new CustomerEvent(ctx, customer, 'deleted'));
+        this.eventBus.publish(new CustomerEvent(ctx, customer, 'deleted', customerId));
         return {
             result: DeletionResult.DELETED,
         };
