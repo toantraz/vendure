@@ -3,6 +3,7 @@ import { Column, Entity, Index, ManyToOne, TableInheritance } from 'typeorm';
 
 import { VendureEntity } from '../base/base.entity';
 import { Channel } from '../channel/channel.entity';
+import { TIMESTAMP } from '../column-types';
 import { Customer } from '../customer/customer.entity';
 import { EntityId } from '../entity-id.decorator';
 import { Order } from '../order/order.entity';
@@ -22,7 +23,7 @@ export abstract class Session extends VendureEntity {
     @Column()
     token: string;
 
-    @Column() expires: Date;
+    @Column({ type: TIMESTAMP }) expires: Date;
 
     @Column() invalidated: boolean;
 

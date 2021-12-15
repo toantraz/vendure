@@ -7,6 +7,7 @@ import { HasCustomFields } from '../../config/custom-field/custom-field-types';
 import { AuthenticationMethod } from '../authentication-method/authentication-method.entity';
 import { NativeAuthenticationMethod } from '../authentication-method/native-authentication-method.entity';
 import { VendureEntity } from '../base/base.entity';
+import { TIMESTAMP } from '../column-types';
 import { CustomUserFields } from '../custom-entity-fields';
 import { Role } from '../role/role.entity';
 
@@ -23,16 +24,13 @@ export class User extends VendureEntity implements HasCustomFields, SoftDeletabl
         super(input);
     }
 
-    @Column({ type: Date, nullable: true })
+    @Column({ type: TIMESTAMP, nullable: true })
     deletedAt: Date | null;
 
     @Column()
     identifier: string;
 
-    @OneToMany(
-        type => AuthenticationMethod,
-        method => method.user,
-    )
+    @OneToMany(type => AuthenticationMethod, method => method.user)
     authenticationMethods: AuthenticationMethod[];
 
     @Column({ default: false })
@@ -42,7 +40,7 @@ export class User extends VendureEntity implements HasCustomFields, SoftDeletabl
     @JoinTable()
     roles: Role[];
 
-    @Column({ type: Date, nullable: true })
+    @Column({ type: TIMESTAMP, nullable: true })
     lastLogin: Date | null;
 
     @Column(type => CustomUserFields)

@@ -16,6 +16,7 @@ import { CustomFieldConfig, CustomFields } from '../config/custom-field/custom-f
 import { Logger } from '../config/logger/vendure-logger';
 import { VendureConfig } from '../config/vendure-config';
 
+import { TIMESTAMP } from './column-types';
 import {
     CustomAddressFields,
     CustomAdministratorFields,
@@ -193,7 +194,7 @@ function getColumnType(
         case 'datetime':
             switch (dbEngine) {
                 case 'postgres':
-                    return 'timestamp';
+                    return TIMESTAMP;
                 case 'mysql':
                 case 'sqlite':
                 case 'sqljs':

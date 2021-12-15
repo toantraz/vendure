@@ -14,6 +14,7 @@ import {
 import { ShippingEligibilityChecker } from '../../config/shipping-method/shipping-eligibility-checker';
 import { VendureEntity } from '../base/base.entity';
 import { Channel } from '../channel/channel.entity';
+import { TIMESTAMP } from '../column-types';
 import { CustomShippingMethodFields } from '../custom-entity-fields';
 import { Order } from '../order/order.entity';
 
@@ -44,7 +45,7 @@ export class ShippingMethod
         this.allCalculators = calculators.reduce((hash, o) => ({ ...hash, [o.code]: o }), {});
     }
 
-    @Column({ type: Date, nullable: true })
+    @Column({ type: TIMESTAMP, nullable: true })
     deletedAt: Date | null;
 
     @Column() code: string;
