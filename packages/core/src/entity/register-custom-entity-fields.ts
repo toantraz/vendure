@@ -1,4 +1,4 @@
-import { CustomFieldType, Type } from '@vendure/common/lib/shared-types';
+import { CustomFieldType } from '@vendure/common/lib/shared-types';
 import { assertNever } from '@vendure/common/lib/shared-utils';
 import {
     Column,
@@ -9,8 +9,6 @@ import {
     JoinTable,
     ManyToMany,
     ManyToOne,
-    OneToMany,
-    OneToOne,
 } from 'typeorm';
 import { DateUtils } from 'typeorm/util/DateUtils';
 
@@ -26,7 +24,10 @@ import {
     CustomChannelFields,
     CustomCollectionFields,
     CustomCollectionFieldsTranslation,
+    CustomCountryFields,
+    CustomCountryFieldsTranslation,
     CustomCustomerFields,
+    CustomCustomerGroupFields,
     CustomFacetFields,
     CustomFacetFieldsTranslation,
     CustomFacetValueFields,
@@ -35,6 +36,7 @@ import {
     CustomGlobalSettingsFields,
     CustomOrderFields,
     CustomOrderLineFields,
+    CustomPaymentMethodFields,
     CustomProductFields,
     CustomProductFieldsTranslation,
     CustomProductOptionFields,
@@ -43,9 +45,13 @@ import {
     CustomProductOptionGroupFieldsTranslation,
     CustomProductVariantFields,
     CustomProductVariantFieldsTranslation,
+    CustomPromotionFields,
     CustomShippingMethodFields,
     CustomShippingMethodFieldsTranslation,
+    CustomTaxCategoryFields,
+    CustomTaxRateFields,
     CustomUserFields,
+    CustomZoneFields,
 } from './custom-entity-fields';
 
 /**
@@ -227,8 +233,11 @@ export function registerCustomEntityFields(config: VendureConfig) {
     registerCustomFieldsForEntity(config, 'Asset', CustomAssetFields);
     registerCustomFieldsForEntity(config, 'Collection', CustomCollectionFields);
     registerCustomFieldsForEntity(config, 'Collection', CustomCollectionFieldsTranslation, true);
-    registerCustomFieldsForEntity(config, 'Customer', CustomCustomerFields);
     registerCustomFieldsForEntity(config, 'Channel', CustomChannelFields);
+    registerCustomFieldsForEntity(config, 'Country', CustomCountryFields);
+    registerCustomFieldsForEntity(config, 'Country', CustomCountryFieldsTranslation, true);
+    registerCustomFieldsForEntity(config, 'Customer', CustomCustomerFields);
+    registerCustomFieldsForEntity(config, 'CustomerGroup', CustomCustomerGroupFields);
     registerCustomFieldsForEntity(config, 'Facet', CustomFacetFields);
     registerCustomFieldsForEntity(config, 'Facet', CustomFacetFieldsTranslation, true);
     registerCustomFieldsForEntity(config, 'FacetValue', CustomFacetValueFields);
@@ -236,6 +245,7 @@ export function registerCustomEntityFields(config: VendureConfig) {
     registerCustomFieldsForEntity(config, 'Fulfillment', CustomFulfillmentFields);
     registerCustomFieldsForEntity(config, 'Order', CustomOrderFields);
     registerCustomFieldsForEntity(config, 'OrderLine', CustomOrderLineFields);
+    registerCustomFieldsForEntity(config, 'PaymentMethod', CustomPaymentMethodFields);
     registerCustomFieldsForEntity(config, 'Product', CustomProductFields);
     registerCustomFieldsForEntity(config, 'Product', CustomProductFieldsTranslation, true);
     registerCustomFieldsForEntity(config, 'ProductOption', CustomProductOptionFields);
@@ -249,8 +259,12 @@ export function registerCustomEntityFields(config: VendureConfig) {
     );
     registerCustomFieldsForEntity(config, 'ProductVariant', CustomProductVariantFields);
     registerCustomFieldsForEntity(config, 'ProductVariant', CustomProductVariantFieldsTranslation, true);
+    registerCustomFieldsForEntity(config, 'Promotion', CustomPromotionFields);
+    registerCustomFieldsForEntity(config, 'TaxCategory', CustomTaxCategoryFields);
+    registerCustomFieldsForEntity(config, 'TaxRate', CustomTaxRateFields);
     registerCustomFieldsForEntity(config, 'User', CustomUserFields);
     registerCustomFieldsForEntity(config, 'GlobalSettings', CustomGlobalSettingsFields);
     registerCustomFieldsForEntity(config, 'ShippingMethod', CustomShippingMethodFields);
     registerCustomFieldsForEntity(config, 'ShippingMethod', CustomShippingMethodFieldsTranslation, true);
+    registerCustomFieldsForEntity(config, 'Zone', CustomZoneFields);
 }
