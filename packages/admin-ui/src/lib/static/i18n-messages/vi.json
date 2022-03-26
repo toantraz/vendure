@@ -550,7 +550,7 @@
     "settle-refund": "Giải quyết hoàn lại tiền",
     "settle-refund-manual-instructions": "Sau khi hoàn tiền theo cách thủ công qua nhà cung cấp dịch vụ thanh toán của bạn ({method}), nhập ID giao dịch tại đây.",
     "settle-refund-success": "Hoàn phí đã giải quyết thành công",
-    "shipping": "Đang giao hàng",
+    "shipping": "Vận chuyển",
     "shipping-address": "Địa chỉ giao hàng",
     "shipping-cancelled": "Đã hủy giao hàng",
     "shipping-method": "Hình thức giao hàng",
