@@ -232,7 +232,7 @@
     "price-with-tax": "Giá đã bao gồm thuế",
     "private": "Riêng tư",
     "public": "Công khai",
-    "remember-me": "Nhớ tôi",
+    "remember-me": "Giữ tôi luôn đăng nhập",
     "remove": "Loại bỏ",
     "remove-item-from-list": "Loại bỏ mục này khỏi danh sách",
     "results-count": "{ count } {count, plural, =1 {result} other {results}}",
