@@ -251,9 +251,10 @@ export class ProductVariantService {
      */
     async getVariantByOrderLineId(ctx: RequestContext, orderLineId: ID): Promise<Translated<ProductVariant>> {
         const { productVariant } = await this.connection.getEntityOrThrow(ctx, OrderLine, orderLineId, {
-            relations: ['productVariant'],
+            relations: ['productVariant', 'productVariant.taxCategory'],
+            includeSoftDeleted: true,
         });
-        return translateDeep(productVariant, ctx.languageCode);
+        return translateDeep(await this.applyChannelPriceAndTax(productVariant, ctx), ctx.languageCode);
     }
 
     /**
@@ -316,6 +317,23 @@ export class ProductVariantService {
             : variant.outOfStockThreshold;
 
         return variant.stockOnHand - variant.stockAllocated - effectiveOutOfStockThreshold;
+    }
+
+    private async getOutOfStockThreshold(ctx: RequestContext, variant: ProductVariant): Promise<number> {
+        const { outOfStockThreshold, trackInventory } = await this.requestCache.get(
+            ctx,
+            'globalSettings',
+            () => this.globalSettingsService.getSettings(ctx),
+        );
+
+        const inventoryNotTracked =
+            variant.trackInventory === GlobalFlag.FALSE ||
+            (variant.trackInventory === GlobalFlag.INHERIT && trackInventory === false);
+        if (inventoryNotTracked) {
+            return 0;
+        } else {
+            return variant.useGlobalOutOfStockThreshold ? outOfStockThreshold : variant.outOfStockThreshold;
+        }
     }
 
     /**
@@ -446,7 +464,8 @@ export class ProductVariantService {
             channelId: ctx.channelId,
             relations: ['facetValues', 'facetValues.channels'],
         });
-        if (input.stockOnHand && input.stockOnHand < 0) {
+        const outOfStockThreshold = await this.getOutOfStockThreshold(ctx, existingVariant);
+        if (input.stockOnHand && input.stockOnHand < outOfStockThreshold) {
             throw new UserInputError('error.stockonhand-cannot-be-negative');
         }
         const inputWithoutPrice = {
@@ -571,7 +590,7 @@ export class ProductVariantService {
                             ctx,
                             ProductVariant,
                             variant.id,
-                            { relations: ['productVariantPrices'] },
+                            { relations: ['productVariantPrices'], includeSoftDeleted: true },
                         );
                         variant.productVariantPrices = variantWithPrices.productVariantPrices;
                     }
@@ -580,7 +599,7 @@ export class ProductVariantService {
                             ctx,
                             ProductVariant,
                             variant.id,
-                            { relations: ['taxCategory'] },
+                            { relations: ['taxCategory'], includeSoftDeleted: true },
                         );
                         variant.taxCategory = variantWithTaxCategory.taxCategory;
                     }
