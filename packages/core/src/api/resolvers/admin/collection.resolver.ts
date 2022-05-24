@@ -9,6 +9,7 @@ import {
     Permission,
     QueryCollectionArgs,
     QueryCollectionsArgs,
+    QueryPreviewCollectionVariantsArgs,
 } from '@vendure/common/lib/generated-types';
 import { PaginatedList } from '@vendure/common/lib/shared-types';
 
@@ -21,6 +22,7 @@ import { FacetValueService } from '../../../service/services/facet-value.service
 import { ConfigurableOperationCodec } from '../../common/configurable-operation-codec';
 import { RequestContext } from '../../common/request-context';
 import { Allow } from '../../decorators/allow.decorator';
+import { RelationPaths, Relations } from '../../decorators/relations.decorator';
 import { Ctx } from '../../decorators/request-context.decorator';
 import { Transaction } from '../../decorators/transaction.decorator';
 
@@ -46,8 +48,9 @@ export class CollectionResolver {
     async collections(
         @Ctx() ctx: RequestContext,
         @Args() args: QueryCollectionsArgs,
+        @Relations(Collection) relations: RelationPaths<Collection>,
     ): Promise<PaginatedList<Translated<Collection>>> {
-        return this.collectionService.findAll(ctx, args.options || undefined).then(res => {
+        return this.collectionService.findAll(ctx, args.options || undefined, relations).then(res => {
             res.items.forEach(this.encodeFilters);
             return res;
         });
@@ -58,20 +61,32 @@ export class CollectionResolver {
     async collection(
         @Ctx() ctx: RequestContext,
         @Args() args: QueryCollectionArgs,
+        @Relations(Collection) relations: RelationPaths<Collection>,
     ): Promise<Translated<Collection> | undefined> {
         let collection: Translated<Collection> | undefined;
         if (args.id) {
-            collection = await this.collectionService.findOne(ctx, args.id);
+            collection = await this.collectionService.findOne(ctx, args.id, relations);
             if (args.slug && collection && collection.slug !== args.slug) {
                 throw new UserInputError(`error.collection-id-slug-mismatch`);
             }
         } else if (args.slug) {
-            collection = await this.collectionService.findOneBySlug(ctx, args.slug);
+            collection = await this.collectionService.findOneBySlug(ctx, args.slug, relations);
         } else {
             throw new UserInputError(`error.collection-id-or-slug-must-be-provided`);
         }
 
         return this.encodeFilters(collection);
+    }
+
+    @Query()
+    @Allow(Permission.ReadCatalog, Permission.ReadCollection)
+    previewCollectionVariants(
+        @Ctx() ctx: RequestContext,
+        @Args() args: QueryPreviewCollectionVariantsArgs,
+        @Relations(Collection) relations: RelationPaths<Collection>,
+    ) {
+        this.configurableOperationCodec.decodeConfigurableOperationIds(CollectionFilter, args.input.filters);
+        return this.collectionService.previewCollectionVariants(ctx, args.input, args.options || undefined);
     }
 
     @Transaction()

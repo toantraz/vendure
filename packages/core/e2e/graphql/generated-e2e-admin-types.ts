@@ -3550,6 +3550,11 @@ export type PermissionDefinition = {
     assignable: Scalars['Boolean'];
 };
 
+export type PreviewCollectionVariantsInput = {
+    parentId?: Maybe<Scalars['ID']>;
+    filters: Array<ConfigurableOperationInput>;
+};
+
 /** The price range where the result has more than one price */
 export type PriceRange = {
     min: Scalars['Int'];
@@ -3883,6 +3888,8 @@ export type Query = {
     /** Get a Collection either by id or slug. If neither id nor slug is specified, an error will result. */
     collection?: Maybe<Collection>;
     collectionFilters: Array<ConfigurableOperationDefinition>;
+    /** Used for real-time previews of the contents of a Collection */
+    previewCollectionVariants: ProductVariantList;
     countries: CountryList;
     country?: Maybe<Country>;
     customerGroups: CustomerGroupList;
@@ -3965,6 +3972,11 @@ export type QueryCollectionsArgs = {
 export type QueryCollectionArgs = {
     id?: Maybe<Scalars['ID']>;
     slug?: Maybe<Scalars['String']>;
+};
+
+export type QueryPreviewCollectionVariantsArgs = {
+    input: PreviewCollectionVariantsInput;
+    options?: Maybe<ProductVariantListOptions>;
 };
 
 export type QueryCountriesArgs = {
@@ -5265,6 +5277,17 @@ export type GetCollectionNestedParentsQuery = {
                 >;
             }
         >;
+    };
+};
+
+export type PreviewCollectionVariantsQueryVariables = Exact<{
+    input: PreviewCollectionVariantsInput;
+    options?: Maybe<ProductVariantListOptions>;
+}>;
+
+export type PreviewCollectionVariantsQuery = {
+    previewCollectionVariants: Pick<ProductVariantList, 'totalItems'> & {
+        items: Array<Pick<ProductVariant, 'id' | 'name'>>;
     };
 };
 
@@ -6619,6 +6642,16 @@ export type GetTaxRateListQuery = {
     };
 };
 
+export type GetOrderWithLineCalculatedPropsQueryVariables = Exact<{
+    id: Scalars['ID'];
+}>;
+
+export type GetOrderWithLineCalculatedPropsQuery = {
+    order?: Maybe<
+        Pick<Order, 'id'> & { lines: Array<Pick<OrderLine, 'id' | 'linePriceWithTax' | 'quantity'>> }
+    >;
+};
+
 export type GetOrderListFulfillmentsQueryVariables = Exact<{ [key: string]: never }>;
 
 export type GetOrderListFulfillmentsQuery = {
@@ -7569,6 +7602,17 @@ export namespace GetCollectionNestedParents {
                 >['parent']
             >['parent']
         >['parent']
+    >;
+}
+
+export namespace PreviewCollectionVariants {
+    export type Variables = PreviewCollectionVariantsQueryVariables;
+    export type Query = PreviewCollectionVariantsQuery;
+    export type PreviewCollectionVariants = NonNullable<
+        PreviewCollectionVariantsQuery['previewCollectionVariants']
+    >;
+    export type Items = NonNullable<
+        NonNullable<NonNullable<PreviewCollectionVariantsQuery['previewCollectionVariants']>['items']>[number]
     >;
 }
 
@@ -8993,6 +9037,15 @@ export namespace GetTaxRateList {
     >;
     export type Zone = NonNullable<
         NonNullable<NonNullable<NonNullable<GetTaxRateListQuery['taxRates']>['items']>[number]>['zone']
+    >;
+}
+
+export namespace GetOrderWithLineCalculatedProps {
+    export type Variables = GetOrderWithLineCalculatedPropsQueryVariables;
+    export type Query = GetOrderWithLineCalculatedPropsQuery;
+    export type Order = NonNullable<GetOrderWithLineCalculatedPropsQuery['order']>;
+    export type Lines = NonNullable<
+        NonNullable<NonNullable<GetOrderWithLineCalculatedPropsQuery['order']>['lines']>[number]
     >;
 }
 

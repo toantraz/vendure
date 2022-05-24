@@ -32,6 +32,7 @@ import { defaultPromotionActions, defaultPromotionConditions } from './promotion
 import { InMemorySessionCacheStrategy } from './session-cache/in-memory-session-cache-strategy';
 import { defaultShippingCalculator } from './shipping-method/default-shipping-calculator';
 import { defaultShippingEligibilityChecker } from './shipping-method/default-shipping-eligibility-checker';
+import { TypeORMHealthCheckStrategy } from '../health-check/typeorm-health-check-strategy';
 import { DefaultTaxLineCalculationStrategy } from './tax/default-tax-line-calculation-strategy';
 import { DefaultTaxZoneStrategy } from './tax/default-tax-zone-strategy';
 import { RuntimeVendureConfig } from './vendure-config';
@@ -111,6 +112,7 @@ export const defaultConfig: RuntimeVendureConfig = {
     entityOptions: {
         channelCacheTtl: 30000,
         zoneCacheTtl: 30000,
+        metadataModifiers: [],
     },
     promotionOptions: {
         promotionConditions: defaultPromotionConditions,
@@ -182,4 +184,7 @@ export const defaultConfig: RuntimeVendureConfig = {
         Zone: [],
     },
     plugins: [],
+    systemOptions: {
+        healthChecks: [new TypeORMHealthCheckStrategy()],
+    },
 };

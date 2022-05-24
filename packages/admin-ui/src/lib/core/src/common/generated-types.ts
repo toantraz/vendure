@@ -3790,6 +3790,11 @@ export type PermissionDefinition = {
   assignable: Scalars['Boolean'];
 };
 
+export type PreviewCollectionVariantsInput = {
+  parentId?: Maybe<Scalars['ID']>;
+  filters: Array<ConfigurableOperationInput>;
+};
+
 /** The price range where the result has more than one price */
 export type PriceRange = {
   __typename?: 'PriceRange';
@@ -4164,6 +4169,8 @@ export type Query = {
   paymentMethodHandlers: Array<ConfigurableOperationDefinition>;
   paymentMethods: PaymentMethodList;
   pendingSearchIndexUpdates: Scalars['Int'];
+  /** Used for real-time previews of the contents of a Collection */
+  previewCollectionVariants: ProductVariantList;
   /** Get a Product either by id or slug. If neither id nor slug is specified, an error will result. */
   product?: Maybe<Product>;
   productOptionGroup?: Maybe<ProductOptionGroup>;
@@ -4313,6 +4320,12 @@ export type QueryPaymentMethodArgs = {
 
 export type QueryPaymentMethodsArgs = {
   options?: Maybe<PaymentMethodListOptions>;
+};
+
+
+export type QueryPreviewCollectionVariantsArgs = {
+  input: PreviewCollectionVariantsInput;
+  options?: Maybe<ProductVariantListOptions>;
 };
 
 
@@ -5818,10 +5831,25 @@ export type GetCollectionContentsQuery = { collection?: Maybe<(
       & Pick<ProductVariantList, 'totalItems'>
       & { items: Array<(
         { __typename?: 'ProductVariant' }
-        & Pick<ProductVariant, 'id' | 'productId' | 'name'>
+        & Pick<ProductVariant, 'id' | 'productId' | 'name' | 'sku'>
       )> }
     ) }
   )> };
+
+export type PreviewCollectionContentsQueryVariables = Exact<{
+  input: PreviewCollectionVariantsInput;
+  options?: Maybe<ProductVariantListOptions>;
+}>;
+
+
+export type PreviewCollectionContentsQuery = { previewCollectionVariants: (
+    { __typename?: 'ProductVariantList' }
+    & Pick<ProductVariantList, 'totalItems'>
+    & { items: Array<(
+      { __typename?: 'ProductVariant' }
+      & Pick<ProductVariant, 'id' | 'productId' | 'name' | 'sku'>
+    )> }
+  ) };
 
 export type AddressFragment = (
   { __typename?: 'Address' }
@@ -6222,7 +6250,7 @@ export type OrderAddressFragment = (
 
 export type OrderFragment = (
   { __typename?: 'Order' }
-  & Pick<Order, 'id' | 'createdAt' | 'updatedAt' | 'orderPlacedAt' | 'code' | 'state' | 'nextStates' | 'total' | 'currencyCode'>
+  & Pick<Order, 'id' | 'createdAt' | 'updatedAt' | 'orderPlacedAt' | 'code' | 'state' | 'nextStates' | 'total' | 'totalWithTax' | 'currencyCode'>
   & { customer?: Maybe<(
     { __typename?: 'Customer' }
     & Pick<Customer, 'id' | 'firstName' | 'lastName'>
@@ -8830,7 +8858,7 @@ export type ConfigurableOperationDefFragment = (
   & Pick<ConfigurableOperationDefinition, 'code' | 'description'>
   & { args: Array<(
     { __typename?: 'ConfigArgDefinition' }
-    & Pick<ConfigArgDefinition, 'name' | 'type' | 'required' | 'defaultValue' | 'list' | 'ui' | 'label'>
+    & Pick<ConfigArgDefinition, 'name' | 'type' | 'required' | 'defaultValue' | 'list' | 'ui' | 'label' | 'description'>
   )> }
 );
 
@@ -9390,6 +9418,13 @@ export namespace GetCollectionContents {
   export type Collection = (NonNullable<GetCollectionContentsQuery['collection']>);
   export type ProductVariants = (NonNullable<(NonNullable<GetCollectionContentsQuery['collection']>)['productVariants']>);
   export type Items = NonNullable<(NonNullable<(NonNullable<(NonNullable<GetCollectionContentsQuery['collection']>)['productVariants']>)['items']>)[number]>;
+}
+
+export namespace PreviewCollectionContents {
+  export type Variables = PreviewCollectionContentsQueryVariables;
+  export type Query = PreviewCollectionContentsQuery;
+  export type PreviewCollectionVariants = (NonNullable<PreviewCollectionContentsQuery['previewCollectionVariants']>);
+  export type Items = NonNullable<(NonNullable<(NonNullable<PreviewCollectionContentsQuery['previewCollectionVariants']>)['items']>)[number]>;
 }
 
 export namespace Address {

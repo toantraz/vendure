@@ -45,7 +45,9 @@
                         [vdrDisabled]="!(updatePermission | hasPermission)"
                     />
                     <label class="visible-toggle">
-                        <ng-container *ngIf="detailForm.value.visible; else private">{{ 'catalog.public' | translate }}</ng-container>
+                        <ng-container *ngIf="detailForm.value.visible; else private">{{
+                            'catalog.public' | translate
+                        }}</ng-container>
                         <ng-template #private>{{ 'catalog.private' | translate }}</ng-template>
                     </label>
                 </clr-toggle-wrapper>
@@ -104,9 +106,10 @@
     <div class="clr-row" formArrayName="filters">
         <div class="clr-col">
             <label>{{ 'catalog.filters' | translate }}</label>
-            <ng-container *ngFor="let filter of filters; index as i">
+            <ng-container *ngFor="let filter of filters; index as i; trackBy:trackByFn">
                 <vdr-configurable-input
-                    (remove)="removeFilter($event)"
+                    (remove)="removeFilter(i)"
+                    [position]="i"
                     [operation]="filter"
                     [operationDefinition]="getFilterDefinition(filter)"
                     [formControlName]="i"
@@ -134,13 +137,30 @@
             </div>
         </div>
         <div class="clr-col">
-            <vdr-collection-contents [collectionId]="id" #collectionContents>
+            <vdr-collection-contents
+                [collectionId]="id"
+                [parentId]="parentId$ | async"
+                [updatedFilters]="updatedFilters$ | async"
+                [previewUpdatedFilters]="livePreview"
+                #collectionContents
+            >
                 <ng-template let-count>
                     <div class="contents-title">
                         {{ 'catalog.collection-contents' | translate }} ({{
                             'common.results-count' | translate: { count: count }
                         }})
                     </div>
+                    <clr-checkbox-wrapper [class.disabled]="detailForm.get('filters')?.pristine">
+                        <input
+                            type="checkbox"
+                            clrCheckbox
+                            [ngModelOptions]="{ standalone: true }"
+                            [disabled]="detailForm.get('filters')?.pristine"
+                            [ngModel]="livePreview"
+                            (ngModelChange)="toggleLivePreview()"
+                        />
+                        <label>{{ 'catalog.live-preview-contents' | translate }}</label>
+                    </clr-checkbox-wrapper>
                 </ng-template>
             </vdr-collection-contents>
         </div>
