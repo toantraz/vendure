@@ -17,6 +17,7 @@ import { ID, PaginatedList } from '@vendure/common/lib/shared-types';
 import { unique } from '@vendure/common/lib/unique';
 
 import { RequestContext } from '../../api/common/request-context';
+import { RelationPaths } from '../../api/index';
 import { ErrorResultUnion, JustErrorResults } from '../../common/error/error-result';
 import { IllegalOperationError, UserInputError } from '../../common/error/errors';
 import { MissingConditionsError } from '../../common/error/generated-graphql-admin-errors';
@@ -38,6 +39,7 @@ import { EventBus } from '../../event-bus';
 import { PromotionEvent } from '../../event-bus/events/promotion-event';
 import { ConfigArgService } from '../helpers/config-arg/config-arg.service';
 import { ListQueryBuilder } from '../helpers/list-query-builder/list-query-builder';
+import { OrderState } from '../helpers/order-state-machine/order-state';
 import { patchEntity } from '../helpers/utils/patch-entity';
 
 import { ChannelService } from './channel.service';
@@ -65,12 +67,16 @@ export class PromotionService {
         this.availableActions = this.configService.promotionOptions.promotionActions || [];
     }
 
-    findAll(ctx: RequestContext, options?: ListQueryOptions<Promotion>): Promise<PaginatedList<Promotion>> {
+    findAll(
+        ctx: RequestContext,
+        options?: ListQueryOptions<Promotion>,
+        relations: RelationPaths<Promotion> = [],
+    ): Promise<PaginatedList<Promotion>> {
         return this.listQueryBuilder
             .build(Promotion, options, {
                 where: { deletedAt: null },
                 channelId: ctx.channelId,
-                relations: ['channels'],
+                relations,
                 ctx,
             })
             .getManyAndCount()
@@ -80,9 +86,14 @@ export class PromotionService {
             }));
     }
 
-    async findOne(ctx: RequestContext, adjustmentSourceId: ID): Promise<Promotion | undefined> {
+    async findOne(
+        ctx: RequestContext,
+        adjustmentSourceId: ID,
+        relations: RelationPaths<Promotion> = [],
+    ): Promise<Promotion | undefined> {
         return this.connection.findOneInChannel(ctx, Promotion, adjustmentSourceId, ctx.channelId, {
             where: { deletedAt: null },
+            relations,
         });
     }
 
@@ -166,7 +177,7 @@ export class PromotionService {
         ctx: RequestContext,
         input: AssignPromotionsToChannelInput,
     ): Promise<Promotion[]> {
-        const defaultChannel = await this.channelService.getDefaultChannel();
+        const defaultChannel = await this.channelService.getDefaultChannel(ctx);
         if (!idsAreEqual(ctx.channelId, defaultChannel.id)) {
             throw new IllegalOperationError(`promotion-channels-can-only-be-changed-from-default-channel`);
         }
@@ -184,7 +195,7 @@ export class PromotionService {
     }
 
     async removePromotionsFromChannel(ctx: RequestContext, input: RemovePromotionsFromChannelInput) {
-        const defaultChannel = await this.channelService.getDefaultChannel();
+        const defaultChannel = await this.channelService.getDefaultChannel(ctx);
         if (!idsAreEqual(ctx.channelId, defaultChannel.id)) {
             throw new IllegalOperationError(`promotion-channels-can-only-be-changed-from-default-channel`);
         }
@@ -219,7 +230,7 @@ export class PromotionService {
                 deletedAt: null,
             },
         });
-        if (!promotion) {
+        if (!promotion || promotion.couponCode !== couponCode) {
             return new CouponCodeInvalidError(couponCode);
         }
         if (promotion.endsAt && +promotion.endsAt < +new Date()) {
@@ -258,7 +269,8 @@ export class PromotionService {
             .createQueryBuilder('order')
             .leftJoin('order.promotions', 'promotion')
             .where('promotion.id = :promotionId', { promotionId })
-            .andWhere('order.customer = :customerId', { customerId });
+            .andWhere('order.customer = :customerId', { customerId })
+            .andWhere('order.state != :state', { state: 'Cancelled' as OrderState });
 
         return qb.getCount();
     }

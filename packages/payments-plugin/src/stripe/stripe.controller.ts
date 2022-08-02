@@ -1,6 +1,5 @@
 import { Controller, Headers, HttpStatus, Post, Req, Res } from '@nestjs/common';
 import {
-    ChannelService,
     InternalServerError,
     LanguageCode,
     Logger,
@@ -8,6 +7,7 @@ import {
     OrderService,
     PaymentMethod,
     RequestContext,
+    RequestContextService,
     TransactionalConnection,
 } from '@vendure/core';
 import { OrderStateTransitionError } from '@vendure/core/dist/common/error/generated-graphql-shop-errors';
@@ -17,7 +17,7 @@ import Stripe from 'stripe';
 import { loggerCtx } from './constants';
 import { stripePaymentMethodHandler } from './stripe.handler';
 import { StripeService } from './stripe.service';
-import { IncomingMessageWithRawBody } from './types';
+import { RequestWithRawBody } from './types';
 
 const missingHeaderErrorMessage = 'Missing stripe-signature header';
 const signatureErrorMessage = 'Error verifying Stripe webhook signature';
@@ -27,15 +27,15 @@ const noPaymentIntentErrorMessage = 'No payment intent in the event payload';
 export class StripeController {
     constructor(
         private connection: TransactionalConnection,
-        private channelService: ChannelService,
         private orderService: OrderService,
         private stripeService: StripeService,
+        private requestContextService: RequestContextService,
     ) {}
 
     @Post('stripe')
     async webhook(
         @Headers('stripe-signature') signature: string | undefined,
-        @Req() request: IncomingMessageWithRawBody,
+        @Req() request: RequestWithRawBody,
         @Res() response: Response,
     ): Promise<void> {
         if (!signature) {
@@ -75,20 +75,27 @@ export class StripeController {
             return;
         }
 
-        const ctx = await this.createContext(channelToken);
+        const ctx = await this.createContext(channelToken, request);
 
-        const transitionToStateResult = await this.orderService.transitionToState(
-            ctx,
-            orderId,
-            'ArrangingPayment',
-        );
+        const order = await this.orderService.findOneByCode(ctx, orderCode);
+        if (!order) {
+            throw Error(`Unable to find order ${orderCode}, unable to settle payment ${paymentIntent.id}!`);
+        }
 
-        if (transitionToStateResult instanceof OrderStateTransitionError) {
-            Logger.error(
-                `Error transitioning order ${orderCode} to ArrangingPayment state: ${transitionToStateResult.message}`,
-                loggerCtx,
+        if (order.state !== 'ArrangingPayment') {
+            const transitionToStateResult = await this.orderService.transitionToState(
+                ctx,
+                orderId,
+                'ArrangingPayment',
             );
-            return;
+
+            if (transitionToStateResult instanceof OrderStateTransitionError) {
+                Logger.error(
+                    `Error transitioning order ${orderCode} to ArrangingPayment state: ${transitionToStateResult.message}`,
+                    loggerCtx,
+                );
+                return;
+            }
         }
 
         const paymentMethod = await this.getPaymentMethod(ctx);
@@ -96,6 +103,7 @@ export class StripeController {
         const addPaymentToOrderResult = await this.orderService.addPaymentToOrder(ctx, orderId, {
             method: paymentMethod.code,
             metadata: {
+                paymentIntentAmountReceived: paymentIntent.amount_received,
                 paymentIntentId: paymentIntent.id,
             },
         });
@@ -109,16 +117,14 @@ export class StripeController {
         }
 
         Logger.info(`Stripe payment intent id ${paymentIntent.id} added to order ${orderCode}`, loggerCtx);
+        response.status(HttpStatus.OK).send('Ok');
     }
 
-    private async createContext(channelToken: string): Promise<RequestContext> {
-        const channel = await this.channelService.getChannelFromToken(channelToken);
-
-        return new RequestContext({
+    private async createContext(channelToken: string, req: RequestWithRawBody): Promise<RequestContext> {
+        return this.requestContextService.create({
             apiType: 'admin',
-            isAuthorized: true,
-            authorizedAsOwnerOnly: false,
-            channel,
+            channelOrToken: channelToken,
+            req,
             languageCode: LanguageCode.en,
         });
     }

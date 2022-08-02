@@ -23,13 +23,18 @@ export class ProductOptionGroupEntityResolver {
     }
 
     @ResolveField()
+    languageCode(@Ctx() ctx: RequestContext, @Parent() optionGroup: ProductOptionGroup): Promise<string> {
+        return this.localeStringHydrator.hydrateLocaleStringField(ctx, optionGroup, 'languageCode');
+    }
+
+    @ResolveField()
     @Allow(Permission.ReadCatalog, Permission.Public, Permission.ReadProduct)
     async options(
         @Ctx() ctx: RequestContext,
         @Parent() optionGroup: Translated<ProductOptionGroup>,
     ): Promise<Array<Translated<ProductOption>>> {
         if (optionGroup.options) {
-            return Promise.resolve(optionGroup.options);
+            return optionGroup.options;
         }
         const group = await this.productOptionGroupService.findOne(ctx, optionGroup.id);
         return group ? group.options : [];

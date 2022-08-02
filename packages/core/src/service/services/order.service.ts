@@ -40,6 +40,7 @@ import { unique } from '@vendure/common/lib/unique';
 import { FindOptionsUtils } from 'typeorm/find-options/FindOptionsUtils';
 
 import { RequestContext } from '../../api/common/request-context';
+import { RelationPaths } from '../../api/decorators/relations.decorator';
 import { RequestContextCacheService } from '../../cache/request-context-cache.service';
 import { ErrorResultUnion, isGraphQlErrorResult } from '../../common/error/error-result';
 import { EntityNotFoundError, InternalServerError, UserInputError } from '../../common/error/errors';
@@ -69,6 +70,7 @@ import {
     PaymentDeclinedError,
     PaymentFailedError,
 } from '../../common/error/generated-graphql-shop-errors';
+import { EntityRelationPaths, EntityRelations } from '../../common/index';
 import { grossPriceOf, netPriceOf } from '../../common/tax-utils';
 import { ListQueryOptions, PaymentMetadata } from '../../common/types/common-types';
 import { assertFound, idsAreEqual } from '../../common/utils';
@@ -87,6 +89,7 @@ import { ProductVariant } from '../../entity/product-variant/product-variant.ent
 import { Promotion } from '../../entity/promotion/promotion.entity';
 import { Refund } from '../../entity/refund/refund.entity';
 import { ShippingLine } from '../../entity/shipping-line/shipping-line.entity';
+import { Allocation } from '../../entity/stock-movement/allocation.entity';
 import { Surcharge } from '../../entity/surcharge/surcharge.entity';
 import { User } from '../../entity/user/user.entity';
 import { EventBus } from '../../event-bus/event-bus';
@@ -175,11 +178,15 @@ export class OrderService {
         })) as OrderProcessState[];
     }
 
-    findAll(ctx: RequestContext, options?: OrderListOptions): Promise<PaginatedList<Order>> {
+    findAll(
+        ctx: RequestContext,
+        options?: OrderListOptions,
+        relations?: RelationPaths<Order>,
+    ): Promise<PaginatedList<Order>> {
         return this.listQueryBuilder
             .build(Order, options, {
                 ctx,
-                relations: [
+                relations: relations ?? [
                     'lines',
                     'customer',
                     'lines.productVariant',
@@ -201,93 +208,117 @@ export class OrderService {
             });
     }
 
-    async findOne(ctx: RequestContext, orderId: ID): Promise<Order | undefined> {
-        const qb = this.connection
-            .getRepository(ctx, Order)
-            .createQueryBuilder('order')
-            .leftJoin('order.channels', 'channel')
-            .leftJoinAndSelect('order.customer', 'customer')
-            .leftJoinAndSelect('order.shippingLines', 'shippingLines')
-            .leftJoinAndSelect('order.surcharges', 'surcharges')
-            .leftJoinAndSelect('customer.user', 'user')
-            .leftJoinAndSelect('order.lines', 'lines')
-            .leftJoinAndSelect('lines.productVariant', 'productVariant')
-            .leftJoinAndSelect('productVariant.taxCategory', 'prodVariantTaxCategory')
-            .leftJoinAndSelect('productVariant.productVariantPrices', 'prices')
-            .leftJoinAndSelect('productVariant.translations', 'translations')
-            .leftJoinAndSelect('lines.featuredAsset', 'featuredAsset')
-            .leftJoinAndSelect('lines.items', 'items')
-            .leftJoinAndSelect('items.fulfillments', 'fulfillments')
-            .leftJoinAndSelect('lines.taxCategory', 'lineTaxCategory')
+    async findOne(
+        ctx: RequestContext,
+        orderId: ID,
+        relations?: RelationPaths<Order>,
+    ): Promise<Order | undefined> {
+        const qb = this.connection.getRepository(ctx, Order).createQueryBuilder('order');
+        const effectiveRelations = relations ?? [
+            'channels',
+            'customer',
+            'customer.user',
+            'lines',
+            'lines.items',
+            'lines.items.fulfillments',
+            'lines.productVariant',
+            'lines.productVariant.taxCategory',
+            'lines.productVariant.productVariantPrices',
+            'lines.productVariant.translations',
+            'lines.featuredAsset',
+            'lines.taxCategory',
+            'shippingLines',
+            'surcharges',
+        ];
+        if (
+            relations &&
+            effectiveRelations.includes('lines.productVariant') &&
+            !effectiveRelations.includes('lines.productVariant.taxCategory')
+        ) {
+            effectiveRelations.push('lines.productVariant.taxCategory');
+        }
+        FindOptionsUtils.applyFindManyOptionsOrConditionsToQueryBuilder(qb, {
+            relations: effectiveRelations,
+        });
+        qb.leftJoin('order.channels', 'channel')
             .where('order.id = :orderId', { orderId })
-            .andWhere('channel.id = :channelId', { channelId: ctx.channelId })
-            .addOrderBy('lines.createdAt', 'ASC')
-            .addOrderBy('items.createdAt', 'ASC');
+            .andWhere('channel.id = :channelId', { channelId: ctx.channelId });
+        if (effectiveRelations.includes('lines') && effectiveRelations.includes('lines.items')) {
+            qb.addOrderBy('order__lines.createdAt', 'ASC').addOrderBy('order__lines__items.createdAt', 'ASC');
+        }
 
         // tslint:disable-next-line:no-non-null-assertion
         FindOptionsUtils.joinEagerRelations(qb, qb.alias, qb.expressionMap.mainAlias!.metadata);
 
         const order = await qb.getOne();
         if (order) {
-            for (const line of order.lines) {
-                line.productVariant = translateDeep(
-                    await this.productVariantService.applyChannelPriceAndTax(line.productVariant, ctx, order),
-                    ctx.languageCode,
-                );
+            if (effectiveRelations.includes('lines.productVariant')) {
+                for (const line of order.lines) {
+                    line.productVariant = translateDeep(
+                        await this.productVariantService.applyChannelPriceAndTax(
+                            line.productVariant,
+                            ctx,
+                            order,
+                        ),
+                        ctx.languageCode,
+                    );
+                }
             }
             return order;
         }
     }
 
-    async findOneByCode(ctx: RequestContext, orderCode: string): Promise<Order | undefined> {
+    async findOneByCode(
+        ctx: RequestContext,
+        orderCode: string,
+        relations?: RelationPaths<Order>,
+    ): Promise<Order | undefined> {
         const order = await this.connection.getRepository(ctx, Order).findOne({
             relations: ['customer'],
             where: {
                 code: orderCode,
             },
         });
-        return order ? this.findOne(ctx, order.id) : undefined;
+        return order ? this.findOne(ctx, order.id, relations) : undefined;
     }
 
-    async findOneByOrderLineId(ctx: RequestContext, orderLineId: ID): Promise<Order | undefined> {
+    async findOneByOrderLineId(
+        ctx: RequestContext,
+        orderLineId: ID,
+        relations?: RelationPaths<Order>,
+    ): Promise<Order | undefined> {
         const order = await this.connection
             .getRepository(ctx, Order)
             .createQueryBuilder('order')
             .innerJoin('order.lines', 'line', 'line.id = :orderLineId', { orderLineId })
             .getOne();
 
-        return order ? this.findOne(ctx, order.id) : undefined;
+        return order ? this.findOne(ctx, order.id, relations) : undefined;
     }
 
     async findByCustomerId(
         ctx: RequestContext,
         customerId: ID,
         options?: ListQueryOptions<Order>,
+        relations?: RelationPaths<Order>,
     ): Promise<PaginatedList<Order>> {
+        const effectiveRelations = (
+            relations ?? ['lines', 'lines.items', 'customer', 'channels', 'shippingLines']
+        ).filter(
+            r =>
+                // Don't join productVariant because it messes with the
+                // price calculation in certain edge-case field resolver scenarios
+                !r.includes('productVariant'),
+        );
         return this.listQueryBuilder
             .build(Order, options, {
-                relations: [
-                    'lines',
-                    'lines.items',
-                    'lines.productVariant',
-                    'lines.productVariant.options',
-                    'customer',
-                    'channels',
-                    'shippingLines',
-                ],
+                relations: relations ?? ['lines', 'lines.items', 'customer', 'channels', 'shippingLines'],
                 channelId: ctx.channelId,
                 ctx,
             })
             .andWhere('order.customer.id = :customerId', { customerId })
             .getManyAndCount()
             .then(([items, totalItems]) => {
-                items.forEach(item => {
-                    item.lines.forEach(line => {
-                        line.productVariant = translateDeep(line.productVariant, ctx.languageCode, [
-                            'options',
-                        ]);
-                    });
-                });
                 return {
                     items,
                     totalItems,
@@ -878,23 +909,26 @@ export class OrderService {
      * * Shipping or billing address changes
      *
      * Setting the `dryRun` input property to `true` will apply all changes, including updating the price of the
-     * Order, but will not actually persist any of those changes to the database.
+     * Order, except history entry and additional payment actions.
+     *
+     * __Using dryRun option, you must wrap function call in transaction manually.__
+     *
      */
     async modifyOrder(
         ctx: RequestContext,
         input: ModifyOrderInput,
     ): Promise<ErrorResultUnion<ModifyOrderResult, Order>> {
-        await this.connection.startTransaction(ctx);
         const order = await this.getOrderOrThrow(ctx, input.orderId);
         const result = await this.orderModifier.modifyOrder(ctx, input, order);
-        if (input.dryRun) {
-            await this.connection.rollBackTransaction(ctx);
-            return isGraphQlErrorResult(result) ? result : result.order;
-        }
+
         if (isGraphQlErrorResult(result)) {
-            await this.connection.rollBackTransaction(ctx);
             return result;
         }
+
+        if (input.dryRun) {
+            return result.order;
+        }
+
         await this.historyService.createHistoryEntryForOrder({
             ctx,
             orderId: input.orderId,
@@ -903,7 +937,6 @@ export class OrderService {
                 modificationId: result.modification.id,
             },
         });
-        await this.connection.commitOpenTransaction(ctx);
         return this.getOrderOrThrow(ctx, input.orderId);
     }
 
@@ -1288,7 +1321,7 @@ export class OrderService {
         const fullOrder = await this.findOne(ctx, order.id);
 
         const soldItems = items.filter(i => !!i.fulfillment);
-        const allocatedItems = items.filter(i => !i.fulfillment);
+        const allocatedItems = await this.getAllocatedItems(ctx, items);
         await this.stockMovementService.createCancellationsForOrderItems(ctx, soldItems);
         await this.stockMovementService.createReleasesForOrderItems(ctx, allocatedItems);
         items.forEach(i => (i.cancelled = true));
@@ -1324,6 +1357,26 @@ export class OrderService {
         });
 
         return orderItemsAreAllCancelled(orderWithItems);
+    }
+
+    private async getAllocatedItems(ctx: RequestContext, items: OrderItem[]): Promise<OrderItem[]> {
+        const allocatedItems: OrderItem[] = [];
+        const allocationMap = new Map<ID, Allocation | false>();
+        for (const item of items) {
+            let allocation = allocationMap.get(item.lineId);
+            if (!allocation) {
+                allocation = await this.connection
+                    .getRepository(ctx, Allocation)
+                    .createQueryBuilder('allocation')
+                    .where('allocation.orderLine = :lineId', { lineId: item.lineId })
+                    .getOne();
+                allocationMap.set(item.lineId, allocation || false);
+            }
+            if (allocation && !item.fulfillment) {
+                allocatedItems.push(item);
+            }
+        }
+        return allocatedItems;
     }
 
     /**
@@ -1631,9 +1684,11 @@ export class OrderService {
     }
 
     /**
-     * Applies promotions, taxes and shipping to the Order.
+     * @description
+     * Applies promotions, taxes and shipping to the Order. If the `updatedOrderLines` argument is passed in,
+     * then all of those OrderLines will have their prices re-calculated using the configured {@link OrderItemPriceCalculationStrategy}.
      */
-    private async applyPriceAdjustments(
+    async applyPriceAdjustments(
         ctx: RequestContext,
         order: Order,
         updatedOrderLines?: OrderLine[],
@@ -1742,9 +1797,17 @@ export class OrderService {
             if (matchingItems.length < inputLine.quantity) {
                 return false;
             }
-            matchingItems.slice(0, inputLine.quantity).forEach(item => {
-                items.set(item.id, item);
-            });
+            matchingItems
+                .slice(0)
+                .sort((a, b) =>
+                    // sort the OrderItems so that those without Fulfillments come first, as
+                    // it makes sense to cancel these prior to cancelling fulfilled items.
+                    !a.fulfillment && b.fulfillment ? -1 : a.fulfillment && !b.fulfillment ? 1 : 0,
+                )
+                .slice(0, inputLine.quantity)
+                .forEach(item => {
+                    items.set(item.id, item);
+                });
         }
         return {
             orders: Array.from(orders.values()),

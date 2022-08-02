@@ -62,7 +62,7 @@ import { BraintreePluginOptions } from './types';
  * 2. Use this client token to instantiate the Braintree Dropin UI.
  * 3. Listen for the `"paymentMethodRequestable"` event which emitted by the Dropin.
  * 4. Use the Dropin's `requestPaymentMethod()` method to get the required payment metadata.
- * 5. Pass that metadata to the `addPaymentToOrder` mutation.
+ * 5. Pass that metadata to the `addPaymentToOrder` mutation. The metadata should be an object of type `{ nonce: string; }`
  *
  * Here is an example of how your storefront code will look. Note that this example is attempting to
  * be framework-agnostic, so you'll need to adapt it to fit to your framework of choice.
@@ -128,12 +128,12 @@ import { BraintreePluginOptions } from './types';
  *   });
  * }
  *
- * async function generateClientToken(orderId: string) {
+ * async function generateClientToken() {
  *   const { generateBraintreeClientToken } = await graphQlClient.query(gql`
- *     query GenerateBraintreeClientToken($orderId: ID!) {
- *       generateBraintreeClientToken(orderId: $orderId)
+ *     query GenerateBraintreeClientToken {
+ *       generateBraintreeClientToken
  *     }
- *   `, { orderId });
+ *   `);
  *   return generateBraintreeClientToken;
  * }
  *
@@ -215,7 +215,7 @@ import { BraintreePluginOptions } from './types';
     shopApiExtensions: {
         schema: gql`
             extend type Query {
-                generateBraintreeClientToken(orderId: ID!): String!
+                generateBraintreeClientToken(orderId: ID): String!
             }
         `,
         resolvers: [BraintreeResolver],

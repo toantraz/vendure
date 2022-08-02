@@ -26,6 +26,7 @@ export class TestEntity extends VendureEntity implements Translatable {
     constructor(input: Partial<TestEntity>) {
         super(input);
     }
+
     @Column()
     label: string;
 
@@ -104,7 +105,8 @@ export class TestEntityPrice extends VendureEntity {
         super(input);
     }
 
-    @EntityId() channelId: ID;
+    @Column()
+    channelId: number;
 
     @Column()
     price: number;
@@ -125,7 +127,8 @@ export class ListQueryResolver {
             .then(([items, totalItems]) => {
                 for (const item of items) {
                     if (item.prices && item.prices.length) {
-                        item.activePrice = item.prices[0].price;
+                        // tslint:disable-next-line:no-non-null-assertion
+                        item.activePrice = item.prices.find(p => p.channelId === 1)!.price;
                     }
                 }
                 return {
@@ -134,9 +137,33 @@ export class ListQueryResolver {
                 };
             });
     }
+
+    @Query()
+    testEntitiesGetMany(@Ctx() ctx: RequestContext, @Args() args: any) {
+        return this.listQueryBuilder
+            .build(TestEntity, args.options, { ctx, relations: ['prices'] })
+            .getMany()
+            .then(items => {
+                for (const item of items) {
+                    if (item.prices && item.prices.length) {
+                        // tslint:disable-next-line:no-non-null-assertion
+                        item.activePrice = item.prices.find(p => p.channelId === 1)!.price;
+                    }
+                }
+                return items.map(i => translateDeep(i, ctx.languageCode));
+            });
+    }
 }
 
 const apiExtensions = gql`
+    type TestEntityTranslation implements Node {
+        id: ID!
+        createdAt: DateTime!
+        updatedAt: DateTime!
+        languageCode: LanguageCode!
+        name: String!
+    }
+
     type TestEntity implements Node {
         id: ID!
         createdAt: DateTime!
@@ -150,6 +177,7 @@ const apiExtensions = gql`
         descriptionLength: Int!
         price: Int!
         ownerId: ID!
+        translations: [TestEntityTranslation!]!
     }
 
     type TestEntityList implements PaginatedList {
@@ -159,6 +187,7 @@ const apiExtensions = gql`
 
     extend type Query {
         testEntities(options: TestEntityListOptions): TestEntityList!
+        testEntitiesGetMany(options: TestEntityListOptions): [TestEntity!]!
     }
 
     input TestEntityListOptions

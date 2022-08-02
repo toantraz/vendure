@@ -20,6 +20,7 @@ import { ProductVariantPriceCalculationStrategy } from './catalog/product-varian
 import { StockDisplayStrategy } from './catalog/stock-display-strategy';
 import { CustomFields } from './custom-field/custom-field-types';
 import { EntityIdStrategy } from './entity-id-strategy/entity-id-strategy';
+import { EntityMetadataModifier } from './entity-metadata/entity-metadata-modifier';
 import { CustomFulfillmentProcess } from './fulfillment/custom-fulfillment-process';
 import { FulfillmentHandler } from './fulfillment/fulfillment-handler';
 import { JobQueueStrategy } from './job-queue/job-queue-strategy';
@@ -40,6 +41,7 @@ import { PromotionCondition } from './promotion/promotion-condition';
 import { SessionCacheStrategy } from './session-cache/session-cache-strategy';
 import { ShippingCalculator } from './shipping-method/shipping-calculator';
 import { ShippingEligibilityChecker } from './shipping-method/shipping-eligibility-checker';
+import { HealthCheckStrategy } from './system/health-check-strategy';
 import { TaxLineCalculationStrategy } from './tax/tax-line-calculation-strategy';
 import { TaxZoneStrategy } from './tax/tax-zone-strategy';
 
@@ -866,6 +868,36 @@ export interface EntityOptions {
      * @default 30000
      */
     zoneCacheTtl?: number;
+    /**
+     * @description
+     * Allows the metadata of the built-in TypeORM entities to be manipulated. This allows you
+     * to do things like altering data types, adding indices etc. This is an advanced feature
+     * which should be used with some caution as it will result in DB schema changes. For examples
+     * see {@link EntityMetadataModifier}.
+     *
+     * @since 1.6.0
+     * @default []
+     */
+    metadataModifiers?: EntityMetadataModifier[];
+}
+
+/**
+ * @description
+ * Options relating to system functions.
+ *
+ * @since 1.6.0
+ * @docsCategory configuration
+ */
+export interface SystemOptions {
+    /**
+     * @description
+     * Defines an array of {@link HealthCheckStrategy} instances which are used by the `/health` endpoint to verify
+     * that any critical systems which the Vendure server depends on are also healthy.
+     *
+     * @default [TypeORMHealthCheckStrategy]
+     * @since 1.6.0
+     */
+    healthChecks?: HealthCheckStrategy[];
 }
 
 /**
@@ -989,6 +1021,13 @@ export interface VendureConfig {
      * Configures how the job queue is persisted and processed.
      */
     jobQueueOptions?: JobQueueOptions;
+    /**
+     * @description
+     * Configures system options
+     *
+     * @since 1.6.0
+     */
+    systemOptions?: SystemOptions;
 }
 
 /**
@@ -1011,6 +1050,7 @@ export interface RuntimeVendureConfig extends Required<VendureConfig> {
     promotionOptions: Required<PromotionOptions>;
     shippingOptions: Required<ShippingOptions>;
     taxOptions: Required<TaxOptions>;
+    systemOptions: Required<SystemOptions>;
 }
 
 type DeepPartialSimple<T> = {

@@ -71,6 +71,7 @@ import {
     ApplyCouponCode,
     DeletionResult,
     GetActiveCustomerOrderWithItemFulfillments,
+    GetActiveCustomerWithOrdersProductPrice,
     GetActiveCustomerWithOrdersProductSlug,
     GetActiveOrder,
     GetOrderByCodeWithPayments,
@@ -101,6 +102,7 @@ import {
     ADD_ITEM_TO_ORDER,
     ADD_PAYMENT,
     APPLY_COUPON_CODE,
+    GET_ACTIVE_CUSTOMER_WITH_ORDERS_PRODUCT_PRICE,
     GET_ACTIVE_CUSTOMER_WITH_ORDERS_PRODUCT_SLUG,
     GET_ACTIVE_ORDER,
     GET_ACTIVE_ORDER_CUSTOMER_WITH_ITEM_FULFILLMENTS,
@@ -231,6 +233,38 @@ describe('Orders resolver', () => {
                 id: 'T_2',
             });
             expect(result.order!.id).toBe('T_2');
+        });
+
+        it('order with calculated line properties', async () => {
+            const result = await adminClient.query<GetOrder.Query, GetOrder.Variables>(
+                gql`
+                    query GetOrderWithLineCalculatedProps($id: ID!) {
+                        order(id: $id) {
+                            id
+                            lines {
+                                id
+                                linePriceWithTax
+                                quantity
+                            }
+                        }
+                    }
+                `,
+                {
+                    id: 'T_2',
+                },
+            );
+            expect(result.order!.lines).toEqual([
+                {
+                    id: 'T_3',
+                    linePriceWithTax: 167880,
+                    quantity: 1,
+                },
+                {
+                    id: 'T_4',
+                    linePriceWithTax: 791640,
+                    quantity: 3,
+                },
+            ]);
         });
 
         it('sort by total', async () => {
@@ -2289,6 +2323,79 @@ describe('Orders resolver', () => {
                 activeCustomer!.orders.items[activeCustomer!.orders.items.length - 1].lines[0].productVariant
                     .product.slug,
             ).toBe('gaming-pc');
+        });
+
+        // https://github.com/vendure-ecommerce/vendure/issues/1508
+        it('resolves price of deleted ProductVariant of OrderLine', async () => {
+            const { activeCustomer } = await shopClient.query<
+                GetActiveCustomerWithOrdersProductPrice.Query,
+                GetActiveCustomerWithOrdersProductPrice.Variables
+            >(GET_ACTIVE_CUSTOMER_WITH_ORDERS_PRODUCT_PRICE, {
+                options: {
+                    sort: {
+                        createdAt: SortOrder.ASC,
+                    },
+                },
+            });
+            expect(
+                activeCustomer!.orders.items[activeCustomer!.orders.items.length - 1].lines[0].productVariant
+                    .price,
+            ).toBe(108720);
+        });
+
+        // https://github.com/vendure-ecommerce/vendure/issues/1558
+        it('cancelling OrderItem avoids items that have been fulfilled', async () => {
+            await shopClient.asUserWithCredentials(customers[0].emailAddress, password);
+            const { addItemToOrder } = await shopClient.query<
+                AddItemToOrder.Mutation,
+                AddItemToOrder.Variables
+            >(ADD_ITEM_TO_ORDER, {
+                productVariantId: 'T_1',
+                quantity: 2,
+            });
+
+            await proceedToArrangingPayment(shopClient);
+            const order = await addPaymentToOrder(shopClient, singleStageRefundablePaymentMethod);
+            orderGuard.assertSuccess(order);
+
+            await adminClient.query<CreateFulfillment.Mutation, CreateFulfillment.Variables>(
+                CREATE_FULFILLMENT,
+                {
+                    input: {
+                        lines: [
+                            {
+                                orderLineId: order.lines[0].id,
+                                quantity: 1,
+                            },
+                        ],
+                        handler: {
+                            code: manualFulfillmentHandler.code,
+                            arguments: [{ name: 'method', value: 'Test' }],
+                        },
+                    },
+                },
+            );
+
+            const { cancelOrder } = await adminClient.query<CancelOrder.Mutation, CancelOrder.Variables>(
+                CANCEL_ORDER,
+                {
+                    input: {
+                        orderId: order.id,
+                        lines: [{ orderLineId: order.lines[0].id, quantity: 1 }],
+                    },
+                },
+            );
+            orderGuard.assertSuccess(cancelOrder);
+
+            const { order: order2 } = await adminClient.query<GetOrder.Query, GetOrder.Variables>(GET_ORDER, {
+                id: order.id,
+            });
+
+            const items = order2!.lines[0].items;
+            const itemWhichIsCancelledAndFulfilled = items.find(
+                i => i.cancelled === true && i.fulfillment != null,
+            );
+            expect(itemWhichIsCancelledAndFulfilled).toBeUndefined();
         });
     });
 });

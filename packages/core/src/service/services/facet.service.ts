@@ -9,6 +9,7 @@ import {
 import { ID, PaginatedList } from '@vendure/common/lib/shared-types';
 
 import { RequestContext } from '../../api/common/request-context';
+import { RelationPaths } from '../../api/index';
 import { ListQueryOptions } from '../../common/types/common-types';
 import { Translated } from '../../common/types/locale-types';
 import { assertFound, idsAreEqual } from '../../common/utils';
@@ -48,11 +49,14 @@ export class FacetService {
     findAll(
         ctx: RequestContext,
         options?: ListQueryOptions<Facet>,
+        relations?: RelationPaths<Facet>,
     ): Promise<PaginatedList<Translated<Facet>>> {
-        const relations = ['values', 'values.facet', 'channels'];
-
         return this.listQueryBuilder
-            .build(Facet, options, { relations, ctx, channelId: ctx.channelId })
+            .build(Facet, options, {
+                relations: relations ?? ['values', 'values.facet', 'channels'],
+                ctx,
+                channelId: ctx.channelId,
+            })
             .getManyAndCount()
             .then(([facets, totalItems]) => {
                 const items = facets.map(facet =>
@@ -65,25 +69,41 @@ export class FacetService {
             });
     }
 
-    findOne(ctx: RequestContext, facetId: ID): Promise<Translated<Facet> | undefined> {
-        const relations = ['values', 'values.facet', 'channels'];
-
+    findOne(
+        ctx: RequestContext,
+        facetId: ID,
+        relations?: RelationPaths<Facet>,
+    ): Promise<Translated<Facet> | undefined> {
         return this.connection
-            .findOneInChannel(ctx, Facet, facetId, ctx.channelId, { relations })
+            .findOneInChannel(ctx, Facet, facetId, ctx.channelId, {
+                relations: relations ?? ['values', 'values.facet', 'channels'],
+            })
             .then(facet => facet && translateDeep(facet, ctx.languageCode, ['values', ['values', 'facet']]));
     }
 
-    findByCode(facetCode: string, lang: LanguageCode): Promise<Translated<Facet> | undefined> {
+    /**
+     * @deprecated Use {@link FacetService.findByCode findByCode(ctx, facetCode, lang)} instead
+     */
+    findByCode(facetCode: string, lang: LanguageCode): Promise<Translated<Facet> | undefined>;
+    findByCode(ctx: RequestContext, facetCode: string, lang: LanguageCode): Promise<Translated<Facet> | undefined>;
+    findByCode(
+        ctxOrFacetCode: RequestContext | string, 
+        facetCodeOrLang: string | LanguageCode, 
+        lang?: LanguageCode
+    ): Promise<Translated<Facet> | undefined> {
         const relations = ['values', 'values.facet'];
-        return this.connection
-            .getRepository(Facet)
-            .findOne({
-                where: {
-                    code: facetCode,
-                },
-                relations,
-            })
-            .then(facet => facet && translateDeep(facet, lang, ['values', ['values', 'facet']]));
+        const [repository, facetCode, languageCode] = ctxOrFacetCode instanceof RequestContext 
+            ? [this.connection.getRepository(ctxOrFacetCode, Facet), facetCodeOrLang, lang!]
+            : [this.connection.rawConnection.getRepository(Facet), ctxOrFacetCode, facetCodeOrLang as LanguageCode];
+
+
+        return repository.findOne({
+            where: {
+                code: facetCode,
+            },
+            relations,
+        })
+        .then(facet => facet && translateDeep(facet, languageCode, ['values', ['values', 'facet']]));
     }
 
     /**

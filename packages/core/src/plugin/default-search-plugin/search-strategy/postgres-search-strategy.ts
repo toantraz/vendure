@@ -3,8 +3,10 @@ import { ID } from '@vendure/common/lib/shared-types';
 import { Brackets, SelectQueryBuilder } from 'typeorm';
 
 import { RequestContext } from '../../../api/common/request-context';
+import { Injector } from '../../../common';
 import { UserInputError } from '../../../common/error/errors';
 import { TransactionalConnection } from '../../../connection/transactional-connection';
+import { PLUGIN_INIT_OPTIONS } from '../constants';
 import { SearchIndexItem } from '../entities/search-index-item.entity';
 import { DefaultSearchPluginInitOptions, SearchInput } from '../types';
 
@@ -22,11 +24,13 @@ import {
  */
 export class PostgresSearchStrategy implements SearchStrategy {
     private readonly minTermLength = 2;
+    private connection: TransactionalConnection;
+    private options: DefaultSearchPluginInitOptions;
 
-    constructor(
-        private connection: TransactionalConnection,
-        private options: DefaultSearchPluginInitOptions,
-    ) {}
+    async init(injector: Injector) {
+        this.connection = injector.get(TransactionalConnection);
+        this.options = injector.get(PLUGIN_INIT_OPTIONS);
+    }
 
     async getFacetValueIds(
         ctx: RequestContext,
@@ -34,7 +38,7 @@ export class PostgresSearchStrategy implements SearchStrategy {
         enabledOnly: boolean,
     ): Promise<Map<ID, number>> {
         const facetValuesQb = this.connection
-            .getRepository(SearchIndexItem)
+            .getRepository(ctx, SearchIndexItem)
             .createQueryBuilder('si')
             .select(['"si"."productId"', 'MAX("si"."productVariantId")'])
             .addSelect(`string_agg("si"."facetValueIds",',')`, 'facetValues');
@@ -56,7 +60,7 @@ export class PostgresSearchStrategy implements SearchStrategy {
         enabledOnly: boolean,
     ): Promise<Map<ID, number>> {
         const collectionsQb = this.connection
-            .getRepository(SearchIndexItem)
+            .getRepository(ctx, SearchIndexItem)
             .createQueryBuilder('si')
             .select(['"si"."productId"', 'MAX("si"."productVariantId")'])
             .addSelect(`string_agg("si"."collectionIds",',')`, 'collections');
@@ -81,7 +85,7 @@ export class PostgresSearchStrategy implements SearchStrategy {
         const skip = input.skip || 0;
         const sort = input.sort;
         const qb = this.connection
-            .getRepository(SearchIndexItem)
+            .getRepository(ctx, SearchIndexItem)
             .createQueryBuilder('si')
             .select(this.createPostgresSelect(!!input.groupByProduct));
         if (input.groupByProduct) {
@@ -121,7 +125,7 @@ export class PostgresSearchStrategy implements SearchStrategy {
         const innerQb = this.applyTermAndFilters(
             ctx,
             this.connection
-                .getRepository(SearchIndexItem)
+                .getRepository(ctx, SearchIndexItem)
                 .createQueryBuilder('si')
                 .select(this.createPostgresSelect(!!input.groupByProduct)),
             input,

@@ -3582,6 +3582,31 @@ export type PaymentStateTransitionError = ErrorResult & {
  * Permissions for administrators and customers. Used to control access to
  * GraphQL resolvers via the {@link Allow} decorator.
  *
+ * ## Understanding Permission.Owner
+ *
+ * `Permission.Owner` is a special permission which is used in some of the Vendure resolvers to indicate that that resolver should only
+ * be accessible to the "owner" of that resource.
+ *
+ * For example, the Shop API `activeCustomer` query resolver should only return the Customer object for the "owner" of that Customer, i.e.
+ * based on the activeUserId of the current session. As a result, the resolver code looks like this:
+ *
+ * @example
+ * ```TypeScript
+ * \@Query()
+ * \@Allow(Permission.Owner)
+ * async activeCustomer(\@Ctx() ctx: RequestContext): Promise<Customer | undefined> {
+ *   const userId = ctx.activeUserId;
+ *   if (userId) {
+ *     return this.customerService.findOneByUserId(ctx, userId);
+ *   }
+ * }
+ * ```
+ *
+ * Here we can see that the "ownership" must be enforced by custom logic inside the resolver. Since "ownership" cannot be defined generally
+ * nor statically encoded at build-time, any resolvers using `Permission.Owner` **must** include logic to enforce that only the owner
+ * of the resource has access. If not, then it is the equivalent of using `Permission.Public`.
+ *
+ *
  * @docsCategory common
  */
 export enum Permission {
@@ -3763,6 +3788,11 @@ export type PermissionDefinition = {
   name: Scalars['String'];
   description: Scalars['String'];
   assignable: Scalars['Boolean'];
+};
+
+export type PreviewCollectionVariantsInput = {
+  parentId?: Maybe<Scalars['ID']>;
+  filters: Array<ConfigurableOperationInput>;
 };
 
 /** The price range where the result has more than one price */
@@ -4139,6 +4169,8 @@ export type Query = {
   paymentMethodHandlers: Array<ConfigurableOperationDefinition>;
   paymentMethods: PaymentMethodList;
   pendingSearchIndexUpdates: Scalars['Int'];
+  /** Used for real-time previews of the contents of a Collection */
+  previewCollectionVariants: ProductVariantList;
   /** Get a Product either by id or slug. If neither id nor slug is specified, an error will result. */
   product?: Maybe<Product>;
   productOptionGroup?: Maybe<ProductOptionGroup>;
@@ -4288,6 +4320,12 @@ export type QueryPaymentMethodArgs = {
 
 export type QueryPaymentMethodsArgs = {
   options?: Maybe<PaymentMethodListOptions>;
+};
+
+
+export type QueryPreviewCollectionVariantsArgs = {
+  input: PreviewCollectionVariantsInput;
+  options?: Maybe<ProductVariantListOptions>;
 };
 
 
@@ -4670,6 +4708,7 @@ export type ShippingMethod = Node & {
   id: Scalars['ID'];
   createdAt: Scalars['DateTime'];
   updatedAt: Scalars['DateTime'];
+  languageCode: LanguageCode;
   code: Scalars['String'];
   name: Scalars['String'];
   description: Scalars['String'];
@@ -4684,6 +4723,7 @@ export type ShippingMethodFilterParameter = {
   id?: Maybe<IdOperators>;
   createdAt?: Maybe<DateOperators>;
   updatedAt?: Maybe<DateOperators>;
+  languageCode?: Maybe<StringOperators>;
   code?: Maybe<StringOperators>;
   name?: Maybe<StringOperators>;
   description?: Maybe<StringOperators>;
@@ -5793,10 +5833,25 @@ export type GetCollectionContentsQuery = { collection?: Maybe<(
       & Pick<ProductVariantList, 'totalItems'>
       & { items: Array<(
         { __typename?: 'ProductVariant' }
-        & Pick<ProductVariant, 'id' | 'productId' | 'name'>
+        & Pick<ProductVariant, 'id' | 'productId' | 'name' | 'sku'>
       )> }
     ) }
   )> };
+
+export type PreviewCollectionContentsQueryVariables = Exact<{
+  input: PreviewCollectionVariantsInput;
+  options?: Maybe<ProductVariantListOptions>;
+}>;
+
+
+export type PreviewCollectionContentsQuery = { previewCollectionVariants: (
+    { __typename?: 'ProductVariantList' }
+    & Pick<ProductVariantList, 'totalItems'>
+    & { items: Array<(
+      { __typename?: 'ProductVariant' }
+      & Pick<ProductVariant, 'id' | 'productId' | 'name' | 'sku'>
+    )> }
+  ) };
 
 export type AddressFragment = (
   { __typename?: 'Address' }
@@ -6197,7 +6252,7 @@ export type OrderAddressFragment = (
 
 export type OrderFragment = (
   { __typename?: 'Order' }
-  & Pick<Order, 'id' | 'createdAt' | 'updatedAt' | 'orderPlacedAt' | 'code' | 'state' | 'nextStates' | 'total' | 'currencyCode'>
+  & Pick<Order, 'id' | 'createdAt' | 'updatedAt' | 'orderPlacedAt' | 'code' | 'state' | 'nextStates' | 'total' | 'totalWithTax' | 'currencyCode'>
   & { customer?: Maybe<(
     { __typename?: 'Customer' }
     & Pick<Customer, 'id' | 'firstName' | 'lastName'>
@@ -8805,7 +8860,7 @@ export type ConfigurableOperationDefFragment = (
   & Pick<ConfigurableOperationDefinition, 'code' | 'description'>
   & { args: Array<(
     { __typename?: 'ConfigArgDefinition' }
-    & Pick<ConfigArgDefinition, 'name' | 'type' | 'required' | 'defaultValue' | 'list' | 'ui' | 'label'>
+    & Pick<ConfigArgDefinition, 'name' | 'type' | 'required' | 'defaultValue' | 'list' | 'ui' | 'label' | 'description'>
   )> }
 );
 
@@ -9365,6 +9420,13 @@ export namespace GetCollectionContents {
   export type Collection = (NonNullable<GetCollectionContentsQuery['collection']>);
   export type ProductVariants = (NonNullable<(NonNullable<GetCollectionContentsQuery['collection']>)['productVariants']>);
   export type Items = NonNullable<(NonNullable<(NonNullable<(NonNullable<GetCollectionContentsQuery['collection']>)['productVariants']>)['items']>)[number]>;
+}
+
+export namespace PreviewCollectionContents {
+  export type Variables = PreviewCollectionContentsQueryVariables;
+  export type Query = PreviewCollectionContentsQuery;
+  export type PreviewCollectionVariants = (NonNullable<PreviewCollectionContentsQuery['previewCollectionVariants']>);
+  export type Items = NonNullable<(NonNullable<(NonNullable<PreviewCollectionContentsQuery['previewCollectionVariants']>)['items']>)[number]>;
 }
 
 export namespace Address {

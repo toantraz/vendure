@@ -164,7 +164,7 @@ export class Order extends VendureEntity implements ChannelAware, HasCustomField
     @Column({ default: 0 })
     shippingWithTax: number;
 
-    @Calculated()
+    @Calculated({ relations: ['lines', 'lines.items', 'shippingLines'] })
     get discounts(): Discount[] {
         this.throwIfLinesNotJoined('discounts');
         const groupedAdjustments = new Map<string, Discount>();
@@ -242,6 +242,7 @@ export class Order extends VendureEntity implements ChannelAware, HasCustomField
     }
 
     @Calculated({
+        relations: ['lines', 'lines.items'],
         query: qb => {
             qb.leftJoin(
                 qb1 => {
@@ -268,7 +269,7 @@ export class Order extends VendureEntity implements ChannelAware, HasCustomField
      * @description
      * A summary of the taxes being applied to this Order.
      */
-    @Calculated()
+    @Calculated({ relations: ['lines', 'lines.items'] })
     get taxSummary(): OrderTaxSummary[] {
         this.throwIfLinesNotJoined('taxSummary');
         const taxRateMap = new Map<

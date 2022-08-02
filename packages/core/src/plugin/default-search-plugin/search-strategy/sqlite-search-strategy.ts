@@ -2,7 +2,9 @@ import { LogicalOperator, SearchResult } from '@vendure/common/lib/generated-typ
 import { ID } from '@vendure/common/lib/shared-types';
 import { Brackets, SelectQueryBuilder } from 'typeorm';
 
+import { PLUGIN_INIT_OPTIONS } from '../../..';
 import { RequestContext } from '../../../api/common/request-context';
+import { Injector } from '../../../common';
 import { UserInputError } from '../../../common/error/errors';
 import { TransactionalConnection } from '../../../connection/transactional-connection';
 import { SearchIndexItem } from '../entities/search-index-item.entity';
@@ -22,11 +24,13 @@ import {
  */
 export class SqliteSearchStrategy implements SearchStrategy {
     private readonly minTermLength = 2;
+    private connection: TransactionalConnection;
+    private options: DefaultSearchPluginInitOptions;
 
-    constructor(
-        private connection: TransactionalConnection,
-        private options: DefaultSearchPluginInitOptions,
-    ) {}
+    async init(injector: Injector) {
+        this.connection = injector.get(TransactionalConnection);
+        this.options = injector.get(PLUGIN_INIT_OPTIONS);
+    }
 
     async getFacetValueIds(
         ctx: RequestContext,
@@ -34,7 +38,7 @@ export class SqliteSearchStrategy implements SearchStrategy {
         enabledOnly: boolean,
     ): Promise<Map<ID, number>> {
         const facetValuesQb = this.connection
-            .getRepository(SearchIndexItem)
+            .getRepository(ctx, SearchIndexItem)
             .createQueryBuilder('si')
             .select(['productId', 'productVariantId'])
             .addSelect('GROUP_CONCAT(si.facetValueIds)', 'facetValues');
@@ -56,7 +60,7 @@ export class SqliteSearchStrategy implements SearchStrategy {
         enabledOnly: boolean,
     ): Promise<Map<ID, number>> {
         const collectionsQb = this.connection
-            .getRepository(SearchIndexItem)
+            .getRepository(ctx, SearchIndexItem)
             .createQueryBuilder('si')
             .select(['productId', 'productVariantId'])
             .addSelect('GROUP_CONCAT(si.collectionIds)', 'collections');
@@ -80,7 +84,7 @@ export class SqliteSearchStrategy implements SearchStrategy {
         const take = input.take || 25;
         const skip = input.skip || 0;
         const sort = input.sort;
-        const qb = this.connection.getRepository(SearchIndexItem).createQueryBuilder('si');
+        const qb = this.connection.getRepository(ctx, SearchIndexItem).createQueryBuilder('si');
         if (input.groupByProduct) {
             qb.addSelect('MIN(price)', 'minPrice').addSelect('MAX(price)', 'maxPrice');
             qb.addSelect('MIN(priceWithTax)', 'minPriceWithTax').addSelect(
@@ -116,7 +120,7 @@ export class SqliteSearchStrategy implements SearchStrategy {
     async getTotalCount(ctx: RequestContext, input: SearchInput, enabledOnly: boolean): Promise<number> {
         const innerQb = this.applyTermAndFilters(
             ctx,
-            this.connection.getRepository(SearchIndexItem).createQueryBuilder('si'),
+            this.connection.getRepository(ctx, SearchIndexItem).createQueryBuilder('si'),
             input,
         );
 

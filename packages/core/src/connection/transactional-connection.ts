@@ -10,12 +10,14 @@ import {
     getRepository,
     ObjectType,
     Repository,
+    SelectQueryBuilder,
 } from 'typeorm';
 
 import { RequestContext } from '../api/common/request-context';
 import { TRANSACTION_MANAGER_KEY } from '../common/constants';
 import { EntityNotFoundError } from '../common/error/errors';
 import { ChannelAware, SoftDeletable } from '../common/types/common-types';
+import { Logger } from '../config/index';
 import { VendureEntity } from '../entity/base/base.entity';
 
 import { TransactionWrapper } from './transaction-wrapper';
@@ -73,8 +75,9 @@ export class TransactionalConnection {
     ): Repository<Entity> {
         if (ctxOrTarget instanceof RequestContext) {
             const transactionManager = this.getTransactionManager(ctxOrTarget);
-            if (transactionManager && maybeTarget && !transactionManager.queryRunner?.isReleased) {
-                return transactionManager.getRepository(maybeTarget);
+            if (transactionManager) {
+                // tslint:disable-next-line:no-non-null-assertion
+                return transactionManager.getRepository(maybeTarget!);
             } else {
                 // tslint:disable-next-line:no-non-null-assertion
                 return getRepository(maybeTarget!);
@@ -101,15 +104,19 @@ export class TransactionalConnection {
      * of Vendure internal services.
      *
      * If there is already a {@link RequestContext} object available, you should pass it in as the first
-     * argument in order to add a new transaction to it. If not, omit the first argument and an empty
+     * argument in order to create transactional context as the copy. If not, omit the first argument and an empty
      * RequestContext object will be created, which is then used to propagate the transaction to
      * all inner method calls.
      *
      * @example
      * ```TypeScript
-     * private async transferCredit(fromId: ID, toId: ID, amount: number) {
-     *   await this.connection.withTransaction(ctx => {
+     * private async transferCredit(outerCtx: RequestContext, fromId: ID, toId: ID, amount: number) {
+     *   await this.connection.withTransaction(outerCtx, ctx => {
      *     await this.giftCardService.updateCustomerCredit(fromId, -amount);
+     *
+     *     // Note you must not use outerCtx here, instead use ctx. Otherwise this query
+     *     // will be executed outside of transaction
+     *     await this.connection.getRepository(ctx, GiftCard).update(fromId, { transferred: true })
      *
      *     // If some intermediate logic here throws an Error,
      *     // then all DB transactions will be rolled back and neither Customer's
@@ -138,7 +145,7 @@ export class TransactionalConnection {
             ctx = RequestContext.empty();
             work = ctxOrWork;
         }
-        return this.transactionWrapper.executeInTransaction(ctx, () => work(ctx), 'auto', this.rawConnection);
+        return this.transactionWrapper.executeInTransaction(ctx, work, 'auto', this.rawConnection);
     }
 
     /**
@@ -256,6 +263,7 @@ export class TransactionalConnection {
         options: FindOneOptions = {},
     ) {
         const qb = this.getRepository(ctx, entity).createQueryBuilder('entity');
+        options.relations = this.removeCustomFieldsWithEagerRelations(qb, options.relations);
         FindOptionsUtils.applyFindManyOptionsOrConditionsToQueryBuilder(qb, options);
         if (options.loadEagerRelations !== false) {
             // tslint:disable-next-line:no-non-null-assertion
@@ -266,6 +274,65 @@ export class TransactionalConnection {
             .andWhere('entity.id = :id', { id })
             .andWhere('channel.id = :channelId', { channelId })
             .getOne();
+    }
+
+    /**
+     * This is a work-around for this issue: https://github.com/vendure-ecommerce/vendure/issues/1664
+     *
+     * Explanation:
+     * When calling `FindOptionsUtils.joinEagerRelations()`, there appears to be a bug in TypeORM whereby
+     * it will throw the following error *if* the `options.relations` array contains any customField relations
+     * where the related entity itself has eagerly-loaded relations.
+     *
+     * For example, let's say we define a custom field on the Product entity like this:
+     * ```
+     * Product: [{
+     *   name: 'featuredFacet',
+     *   type: 'relation',
+     *   entity: Facet,
+     * }],
+     * ```
+     * and then we pass into `TransactionalConnection.findOneInChannel()` an options array of:
+     *
+     * ```
+     * { relations: ['customFields.featuredFacet'] }
+     * ```
+     * it will throw an error because the `Facet` entity itself has eager relations (namely the `translations` property).
+     * This will cause TypeORM to throw the error:
+     * ```
+     * TypeORMError: "entity__customFields" alias was not found. Maybe you forgot to join it?
+     * ```
+     *
+     * So this method introspects the QueryBuilder metadata and checks for any custom field relations which
+     * themselves have eager relations. If found, it removes those items from the `options.relations` array.
+     *
+     * TODO: Ideally create a minimal reproduction case and report in the TypeORM repo for an upstream fix.
+     */
+    private removeCustomFieldsWithEagerRelations(
+        qb: SelectQueryBuilder<any>,
+        relations: string[] = [],
+    ): string[] {
+        let resultingRelations = relations;
+        const mainAlias = qb.expressionMap.mainAlias;
+        const customFieldsMetadata = mainAlias?.metadata.embeddeds.find(
+            metadata => metadata.propertyName === 'customFields',
+        );
+        if (customFieldsMetadata) {
+            const customFieldRelationsWithEagerRelations = customFieldsMetadata.relations.filter(
+                relation => !!relation.inverseEntityMetadata.ownRelations.find(or => or.isEager === true),
+            );
+            for (const relation of customFieldRelationsWithEagerRelations) {
+                const propertyName = relation.propertyName;
+                const relationsToRemove = relations.filter(r => r.startsWith(`customFields.${propertyName}`));
+                if (relationsToRemove.length) {
+                    Logger.debug(
+                        `TransactionalConnection.findOneInChannel cannot automatically join relation [${mainAlias?.metadata.name}.customFields.${propertyName}]`,
+                    );
+                    resultingRelations = relations.filter(r => !r.startsWith(`customFields.${propertyName}`));
+                }
+            }
+        }
+        return resultingRelations;
     }
 
     /**

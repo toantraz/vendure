@@ -3,11 +3,12 @@ import { Customer, Logger, Order, RequestContext, TransactionalConnection } from
 import Stripe from 'stripe';
 
 import { loggerCtx, STRIPE_PLUGIN_OPTIONS } from './constants';
+import { getAmountInStripeMinorUnits } from './stripe-utils';
 import { StripePluginOptions } from './types';
 
 @Injectable()
 export class StripeService {
-    private stripe: Stripe;
+    protected stripe: Stripe;
 
     constructor(
         private connection: TransactionalConnection,
@@ -24,20 +25,23 @@ export class StripeService {
         if (this.options.storeCustomersInStripe && ctx.activeUserId) {
             customerId = await this.getStripeCustomerId(ctx, order);
         }
-
-        const { client_secret } = await this.stripe.paymentIntents.create({
-            amount: order.totalWithTax,
-            currency: order.currencyCode.toLowerCase(),
-            customer: customerId,
-            automatic_payment_methods: {
-                enabled: true,
+        const amountInMinorUnits = getAmountInStripeMinorUnits(order);
+        const { client_secret } = await this.stripe.paymentIntents.create(
+            {
+                amount: amountInMinorUnits,
+                currency: order.currencyCode.toLowerCase(),
+                customer: customerId,
+                automatic_payment_methods: {
+                    enabled: true,
+                },
+                metadata: {
+                    channelToken: ctx.channel.token,
+                    orderId: order.id,
+                    orderCode: order.code,
+                },
             },
-            metadata: {
-                channelToken: ctx.channel.token,
-                orderId: order.id,
-                orderCode: order.code,
-            },
-        });
+            { idempotencyKey: `${order.code}_${amountInMinorUnits}` },
+        );
 
         if (!client_secret) {
             // This should never happen

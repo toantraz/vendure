@@ -3344,6 +3344,31 @@ export type PaymentStateTransitionError = ErrorResult & {
  * Permissions for administrators and customers. Used to control access to
  * GraphQL resolvers via the {@link Allow} decorator.
  *
+ * ## Understanding Permission.Owner
+ *
+ * `Permission.Owner` is a special permission which is used in some of the Vendure resolvers to indicate that that resolver should only
+ * be accessible to the "owner" of that resource.
+ *
+ * For example, the Shop API `activeCustomer` query resolver should only return the Customer object for the "owner" of that Customer, i.e.
+ * based on the activeUserId of the current session. As a result, the resolver code looks like this:
+ *
+ * @example
+ * ```TypeScript
+ * \@Query()
+ * \@Allow(Permission.Owner)
+ * async activeCustomer(\@Ctx() ctx: RequestContext): Promise<Customer | undefined> {
+ *   const userId = ctx.activeUserId;
+ *   if (userId) {
+ *     return this.customerService.findOneByUserId(ctx, userId);
+ *   }
+ * }
+ * ```
+ *
+ * Here we can see that the "ownership" must be enforced by custom logic inside the resolver. Since "ownership" cannot be defined generally
+ * nor statically encoded at build-time, any resolvers using `Permission.Owner` **must** include logic to enforce that only the owner
+ * of the resource has access. If not, then it is the equivalent of using `Permission.Public`.
+ *
+ *
  * @docsCategory common
  */
 export enum Permission {
@@ -3523,6 +3548,11 @@ export type PermissionDefinition = {
     name: Scalars['String'];
     description: Scalars['String'];
     assignable: Scalars['Boolean'];
+};
+
+export type PreviewCollectionVariantsInput = {
+    parentId?: Maybe<Scalars['ID']>;
+    filters: Array<ConfigurableOperationInput>;
 };
 
 /** The price range where the result has more than one price */
@@ -3858,6 +3888,8 @@ export type Query = {
     /** Get a Collection either by id or slug. If neither id nor slug is specified, an error will result. */
     collection?: Maybe<Collection>;
     collectionFilters: Array<ConfigurableOperationDefinition>;
+    /** Used for real-time previews of the contents of a Collection */
+    previewCollectionVariants: ProductVariantList;
     countries: CountryList;
     country?: Maybe<Country>;
     customerGroups: CustomerGroupList;
@@ -3940,6 +3972,11 @@ export type QueryCollectionsArgs = {
 export type QueryCollectionArgs = {
     id?: Maybe<Scalars['ID']>;
     slug?: Maybe<Scalars['String']>;
+};
+
+export type QueryPreviewCollectionVariantsArgs = {
+    input: PreviewCollectionVariantsInput;
+    options?: Maybe<ProductVariantListOptions>;
 };
 
 export type QueryCountriesArgs = {
@@ -4363,6 +4400,7 @@ export type ShippingMethod = Node & {
     id: Scalars['ID'];
     createdAt: Scalars['DateTime'];
     updatedAt: Scalars['DateTime'];
+    languageCode: LanguageCode;
     code: Scalars['String'];
     name: Scalars['String'];
     description: Scalars['String'];
@@ -4377,6 +4415,7 @@ export type ShippingMethodFilterParameter = {
     id?: Maybe<IdOperators>;
     createdAt?: Maybe<DateOperators>;
     updatedAt?: Maybe<DateOperators>;
+    languageCode?: Maybe<StringOperators>;
     code?: Maybe<StringOperators>;
     name?: Maybe<StringOperators>;
     description?: Maybe<StringOperators>;
@@ -5243,6 +5282,17 @@ export type GetCollectionNestedParentsQuery = {
     };
 };
 
+export type PreviewCollectionVariantsQueryVariables = Exact<{
+    input: PreviewCollectionVariantsInput;
+    options?: Maybe<ProductVariantListOptions>;
+}>;
+
+export type PreviewCollectionVariantsQuery = {
+    previewCollectionVariants: Pick<ProductVariantList, 'totalItems'> & {
+        items: Array<Pick<ProductVariant, 'id' | 'name'>>;
+    };
+};
+
 export type GetCheckersQueryVariables = Exact<{ [key: string]: never }>;
 
 export type GetCheckersQuery = {
@@ -5589,7 +5639,7 @@ export type CollectionFragment = Pick<
     filters: Array<ConfigurableOperationFragment>;
     translations: Array<Pick<CollectionTranslation, 'id' | 'languageCode' | 'name' | 'slug' | 'description'>>;
     parent?: Maybe<Pick<Collection, 'id' | 'name'>>;
-    children?: Maybe<Array<Pick<Collection, 'id' | 'name'>>>;
+    children?: Maybe<Array<Pick<Collection, 'id' | 'name' | 'position'>>>;
 };
 
 export type FacetValueFragment = Pick<FacetValue, 'id' | 'languageCode' | 'code' | 'name'> & {
@@ -6300,7 +6350,7 @@ export type CancelOrderMutation = {
         | Pick<OrderStateTransitionError, 'errorCode' | 'message'>;
 };
 
-export type CanceledOrderFragment = Pick<Order, 'id'> & {
+export type CanceledOrderFragment = Pick<Order, 'id' | 'state'> & {
     lines: Array<Pick<OrderLine, 'quantity'> & { items: Array<Pick<OrderItem, 'id' | 'cancelled'>> }>;
 };
 
@@ -6592,6 +6642,16 @@ export type GetTaxRateListQuery = {
             }
         >;
     };
+};
+
+export type GetOrderWithLineCalculatedPropsQueryVariables = Exact<{
+    id: Scalars['ID'];
+}>;
+
+export type GetOrderWithLineCalculatedPropsQuery = {
+    order?: Maybe<
+        Pick<Order, 'id'> & { lines: Array<Pick<OrderLine, 'id' | 'linePriceWithTax' | 'quantity'>> }
+    >;
 };
 
 export type GetOrderListFulfillmentsQueryVariables = Exact<{ [key: string]: never }>;
@@ -7058,6 +7118,12 @@ export type TransitionFulfillmentToStateMutation = {
         | Pick<Fulfillment, 'id' | 'state' | 'nextStates' | 'createdAt'>
         | Pick<FulfillmentStateTransitionError, 'errorCode' | 'message' | 'transitionError'>;
 };
+
+export type UpdateOrderCustomFieldsMutationVariables = Exact<{
+    input: UpdateOrderInput;
+}>;
+
+export type UpdateOrderCustomFieldsMutation = { setOrderCustomFields?: Maybe<Pick<Order, 'id'>> };
 
 export type GetTagListQueryVariables = Exact<{
     options?: Maybe<TagListOptions>;
@@ -7544,6 +7610,17 @@ export namespace GetCollectionNestedParents {
                 >['parent']
             >['parent']
         >['parent']
+    >;
+}
+
+export namespace PreviewCollectionVariants {
+    export type Variables = PreviewCollectionVariantsQueryVariables;
+    export type Query = PreviewCollectionVariantsQuery;
+    export type PreviewCollectionVariants = NonNullable<
+        PreviewCollectionVariantsQuery['previewCollectionVariants']
+    >;
+    export type Items = NonNullable<
+        NonNullable<NonNullable<PreviewCollectionVariantsQuery['previewCollectionVariants']>['items']>[number]
     >;
 }
 
@@ -8971,6 +9048,15 @@ export namespace GetTaxRateList {
     >;
 }
 
+export namespace GetOrderWithLineCalculatedProps {
+    export type Variables = GetOrderWithLineCalculatedPropsQueryVariables;
+    export type Query = GetOrderWithLineCalculatedPropsQuery;
+    export type Order = NonNullable<GetOrderWithLineCalculatedPropsQuery['order']>;
+    export type Lines = NonNullable<
+        NonNullable<NonNullable<GetOrderWithLineCalculatedPropsQuery['order']>['lines']>[number]
+    >;
+}
+
 export namespace GetOrderListFulfillments {
     export type Variables = GetOrderListFulfillmentsQueryVariables;
     export type Query = GetOrderListFulfillmentsQuery;
@@ -9500,6 +9586,16 @@ export namespace TransitionFulfillmentToState {
     export type FulfillmentStateTransitionErrorInlineFragment = DiscriminateUnion<
         NonNullable<TransitionFulfillmentToStateMutation['transitionFulfillmentToState']>,
         { __typename?: 'FulfillmentStateTransitionError' }
+    >;
+}
+
+export namespace UpdateOrderCustomFields {
+    export type Variables = UpdateOrderCustomFieldsMutationVariables;
+    export type Mutation = UpdateOrderCustomFieldsMutation;
+    export type SetOrderCustomFields = NonNullable<UpdateOrderCustomFieldsMutation['setOrderCustomFields']>;
+    export type OrderInlineFragment = { __typename: 'Order' } & Pick<
+        NonNullable<UpdateOrderCustomFieldsMutation['setOrderCustomFields']>,
+        'id'
     >;
 }
 

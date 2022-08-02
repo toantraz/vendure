@@ -147,9 +147,10 @@ export class Importer {
     }
 
     /**
+     * @description
      * Imports the products specified in the rows object. Return an array of error messages.
      */
-    private async importProducts(
+    async importProducts(
         ctx: RequestContext,
         rows: ParsedProductWithVariants[],
         onProgress: OnProgressFn,
@@ -193,7 +194,9 @@ export class Importer {
             });
 
             const optionsMap: { [optionName: string]: ID } = {};
-            for (const optionGroup of product.optionGroups) {
+            for (const [optionGroup, optionGroupIndex] of product.optionGroups.map(
+                (group, i) => [group, i] as const,
+            )) {
                 const optionGroupMainTranslation = this.getTranslationByCodeOrFirst(
                     optionGroup.translations,
                     ctx.languageCode,
@@ -212,10 +215,12 @@ export class Importer {
                         };
                     }),
                 });
-                for (const optionIndex of optionGroupMainTranslation.values.map((value, index) => index)) {
+                for (const [optionIndex, value] of optionGroupMainTranslation.values.map(
+                    (val, index) => [index, val] as const,
+                )) {
                     const createdOptionId = await this.fastImporter.createProductOption({
                         productOptionGroupId: groupId,
-                        code: normalizeString(optionGroupMainTranslation.values[optionIndex], '-'),
+                        code: normalizeString(value, '-'),
                         translations: optionGroup.translations.map(translation => {
                             return {
                                 languageCode: translation.languageCode,
@@ -223,7 +228,7 @@ export class Importer {
                             };
                         }),
                     });
-                    optionsMap[optionGroupMainTranslation.values[optionIndex]] = createdOptionId;
+                    optionsMap[`${optionGroupIndex}_${value}`] = createdOptionId;
                 }
                 await this.fastImporter.addOptionGroupToProduct(createdProductId, groupId);
             }
@@ -246,6 +251,9 @@ export class Importer {
                     variantMainTranslation.customFields,
                     this.configService.customFields.ProductVariant,
                 );
+                const optionIds = variantMainTranslation.optionValues.map(
+                    (v, index) => optionsMap[`${index}_${v}`],
+                );
                 const createdVariant = await this.fastImporter.createProductVariant({
                     productId: createdProductId,
                     facetValueIds,
@@ -255,7 +263,7 @@ export class Importer {
                     taxCategoryId: this.getMatchingTaxCategoryId(variant.taxCategory, taxCategories),
                     stockOnHand: variant.stockOnHand,
                     trackInventory: variant.trackInventory,
-                    optionIds: variantMainTranslation.optionValues.map(v => optionsMap[v]),
+                    optionIds,
                     translations: variant.translations.map(translation => {
                         const productTranslation = product.translations.find(
                             t => t.languageCode === translation.languageCode,
@@ -305,7 +313,11 @@ export class Importer {
             if (cachedFacet) {
                 facetEntity = cachedFacet;
             } else {
-                const existing = await this.facetService.findByCode(normalizeString(facetName), languageCode);
+                const existing = await this.facetService.findByCode(
+                    ctx,
+                    normalizeString(facetName, '-'),
+                    languageCode,
+                );
                 if (existing) {
                     facetEntity = existing;
                 } else {
@@ -333,19 +345,15 @@ export class Importer {
                 if (existing) {
                     facetValueEntity = existing;
                 } else {
-                    facetValueEntity = await this.facetValueService.create(
-                        RequestContext.empty(),
-                        facetEntity,
-                        {
-                            code: normalizeString(valueName, '-'),
-                            translations: item.translations.map(translation => {
-                                return {
-                                    languageCode: translation.languageCode,
-                                    name: translation.value,
-                                };
-                            }),
-                        },
-                    );
+                    facetValueEntity = await this.facetValueService.create(ctx, facetEntity, {
+                        code: normalizeString(valueName, '-'),
+                        translations: item.translations.map(translation => {
+                            return {
+                                languageCode: translation.languageCode,
+                                name: translation.value,
+                            };
+                        }),
+                    });
                 }
                 this.facetValueMap.set(facetValueMapKey, facetValueEntity);
             }
@@ -356,11 +364,14 @@ export class Importer {
     }
 
     private processCustomFieldValues(customFields: { [field: string]: string }, config: CustomFieldConfig[]) {
-        const processed: { [field: string]: string | string[] } = {};
+        const processed: { [field: string]: string | string[] | undefined } = {};
         for (const fieldDef of config) {
             const value = customFields[fieldDef.name];
-            processed[fieldDef.name] =
-                fieldDef.list === true ? value?.split('|').filter(val => val.trim() !== '') : value;
+            if (fieldDef.list === true) {
+                processed[fieldDef.name] = value?.split('|').filter(val => val.trim() !== '');
+            } else {
+                processed[fieldDef.name] = value ? value : undefined;
+            }
         }
         return processed;
     }

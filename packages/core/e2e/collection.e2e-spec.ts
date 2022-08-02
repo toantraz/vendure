@@ -12,6 +12,7 @@ import path from 'path';
 import { initialData } from '../../../e2e-common/e2e-initial-data';
 import { testConfig, TEST_SETUP_TIMEOUT_MS } from '../../../e2e-common/test-config';
 import { pick } from '../../common/lib/pick';
+import { productIdCollectionFilter, variantIdCollectionFilter } from '../src/index';
 
 import { COLLECTION_FRAGMENT, FACET_VALUE_FRAGMENT } from './graphql/fragments';
 import {
@@ -38,6 +39,8 @@ import {
     GetProductsWithVariantIds,
     LanguageCode,
     MoveCollection,
+    PreviewCollectionVariantsQuery,
+    PreviewCollectionVariantsQueryVariables,
     SortOrder,
     UpdateCollection,
     UpdateProduct,
@@ -853,6 +856,28 @@ describe('Collection resolver', () => {
             ),
         );
 
+        // https://github.com/vendure-ecommerce/vendure/issues/1595
+        it('children correctly ordered', async () => {
+            await adminClient.query<MoveCollection.Mutation, MoveCollection.Variables>(MOVE_COLLECTION, {
+                input: {
+                    collectionId: computersCollection.id,
+                    parentId: 'T_1',
+                    index: 4,
+                },
+            });
+            const result = await adminClient.query<GetCollection.Query, GetCollection.Variables>(
+                GET_COLLECTION,
+                {
+                    id: 'T_1',
+                },
+            );
+            if (!result.collection) {
+                fail(`did not return the collection`);
+                return;
+            }
+            expect(result.collection.children?.map(c => (c as any).position)).toEqual([0, 1, 2, 3, 4, 5]);
+        });
+
         async function getChildrenOf(parentId: string): Promise<Array<{ name: string; id: string }>> {
             const result = await adminClient.query<GetCollections.Query>(GET_COLLECTIONS);
             return result.collections.items.filter(i => i.parent!.id === parentId);
@@ -1431,6 +1456,92 @@ describe('Collection resolver', () => {
             });
         });
 
+        describe('variantId filter', () => {
+            it('contains expects variants', async () => {
+                const { createCollection } = await adminClient.query<
+                    CreateCollection.Mutation,
+                    CreateCollection.Variables
+                >(CREATE_COLLECTION, {
+                    input: {
+                        translations: [
+                            {
+                                languageCode: LanguageCode.en,
+                                name: `variantId filter test`,
+                                description: '',
+                                slug: `variantId-filter-test`,
+                            },
+                        ],
+                        filters: [
+                            {
+                                code: variantIdCollectionFilter.code,
+                                arguments: [
+                                    {
+                                        name: 'variantIds',
+                                        value: `["T_1", "T_4"]`,
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                });
+                await awaitRunningJobs(adminClient, 5000);
+
+                const result = await adminClient.query<
+                    GetCollectionProducts.Query,
+                    GetCollectionProducts.Variables
+                >(GET_COLLECTION_PRODUCT_VARIANTS, {
+                    id: createCollection.id,
+                });
+                expect(result.collection!.productVariants.items.map(i => i.id).sort()).toEqual([
+                    'T_1',
+                    'T_4',
+                ]);
+            });
+        });
+
+        describe('productId filter', () => {
+            it('contains expects variants', async () => {
+                const { createCollection } = await adminClient.query<
+                    CreateCollection.Mutation,
+                    CreateCollection.Variables
+                >(CREATE_COLLECTION, {
+                    input: {
+                        translations: [
+                            {
+                                languageCode: LanguageCode.en,
+                                name: `productId filter test`,
+                                description: '',
+                                slug: `productId-filter-test`,
+                            },
+                        ],
+                        filters: [
+                            {
+                                code: productIdCollectionFilter.code,
+                                arguments: [
+                                    {
+                                        name: 'productIds',
+                                        value: `["T_2"]`,
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                });
+                await awaitRunningJobs(adminClient, 5000);
+
+                const result = await adminClient.query<
+                    GetCollectionProducts.Query,
+                    GetCollectionProducts.Variables
+                >(GET_COLLECTION_PRODUCT_VARIANTS, {
+                    id: createCollection.id,
+                });
+                expect(result.collection!.productVariants.items.map(i => i.id).sort()).toEqual([
+                    'T_5',
+                    'T_6',
+                ]);
+            });
+        });
+
         describe('re-evaluation of contents on changes', () => {
             let products: GetProductsWithVariantIds.Items[];
 
@@ -1601,6 +1712,153 @@ describe('Collection resolver', () => {
                 // no "Hat"
             ]);
         });
+
+        describe('previewCollectionVariants', () => {
+            it('returns correct contents', async () => {
+                const { previewCollectionVariants } = await adminClient.query<
+                    PreviewCollectionVariantsQuery,
+                    PreviewCollectionVariantsQueryVariables
+                >(PREVIEW_COLLECTION_VARIANTS, {
+                    input: {
+                        parentId: electronicsCollection.parent?.id,
+                        filters: [
+                            {
+                                code: facetValueCollectionFilter.code,
+                                arguments: [
+                                    {
+                                        name: 'facetValueIds',
+                                        value: `["${getFacetValueId('electronics')}","${getFacetValueId(
+                                            'pear',
+                                        )}"]`,
+                                    },
+                                    {
+                                        name: 'containsAny',
+                                        value: `false`,
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                });
+                expect(previewCollectionVariants.items.map(i => i.name).sort()).toEqual([
+                    'Curvy Monitor 24 inch',
+                    'Curvy Monitor 27 inch',
+                    'Gaming PC i7-8700 240GB SSD',
+                    'Instant Camera',
+                    'Laptop 13 inch 16GB',
+                    'Laptop 13 inch 8GB',
+                    'Laptop 15 inch 16GB',
+                    'Laptop 15 inch 8GB',
+                ]);
+            });
+
+            it('works with list options', async () => {
+                const { previewCollectionVariants } = await adminClient.query<
+                    PreviewCollectionVariantsQuery,
+                    PreviewCollectionVariantsQueryVariables
+                >(PREVIEW_COLLECTION_VARIANTS, {
+                    input: {
+                        parentId: electronicsCollection.parent?.id,
+                        filters: [
+                            {
+                                code: facetValueCollectionFilter.code,
+                                arguments: [
+                                    {
+                                        name: 'facetValueIds',
+                                        value: `["${getFacetValueId('electronics')}"]`,
+                                    },
+                                    {
+                                        name: 'containsAny',
+                                        value: `false`,
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    options: {
+                        sort: {
+                            name: SortOrder.ASC,
+                        },
+                        filter: {
+                            name: {
+                                contains: 'mon',
+                            },
+                        },
+                        take: 5,
+                    },
+                });
+                expect(previewCollectionVariants.items).toEqual([
+                    { id: 'T_5', name: 'Curvy Monitor 24 inch' },
+                    { id: 'T_6', name: 'Curvy Monitor 27 inch' },
+                ]);
+            });
+
+            it('takes parent filters into account', async () => {
+                const { previewCollectionVariants } = await adminClient.query<
+                    PreviewCollectionVariantsQuery,
+                    PreviewCollectionVariantsQueryVariables
+                >(PREVIEW_COLLECTION_VARIANTS, {
+                    input: {
+                        parentId: electronicsCollection.id,
+                        filters: [
+                            {
+                                code: variantNameCollectionFilter.code,
+                                arguments: [
+                                    {
+                                        name: 'operator',
+                                        value: 'startsWith',
+                                    },
+                                    {
+                                        name: 'term',
+                                        value: 'h',
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                });
+                expect(previewCollectionVariants.items.map(i => i.name).sort()).toEqual([
+                    'Hard Drive 1TB',
+                    'Hard Drive 2TB',
+                    'Hard Drive 3TB',
+                    'Hard Drive 4TB',
+                    'Hard Drive 6TB',
+                ]);
+            });
+
+            it('with no parentId, operates at the root level', async () => {
+                const { previewCollectionVariants } = await adminClient.query<
+                    PreviewCollectionVariantsQuery,
+                    PreviewCollectionVariantsQueryVariables
+                >(PREVIEW_COLLECTION_VARIANTS, {
+                    input: {
+                        filters: [
+                            {
+                                code: variantNameCollectionFilter.code,
+                                arguments: [
+                                    {
+                                        name: 'operator',
+                                        value: 'startsWith',
+                                    },
+                                    {
+                                        name: 'term',
+                                        value: 'h',
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                });
+                expect(previewCollectionVariants.items.map(i => i.name).sort()).toEqual([
+                    'Hard Drive 1TB',
+                    'Hard Drive 2TB',
+                    'Hard Drive 3TB',
+                    'Hard Drive 4TB',
+                    'Hard Drive 6TB',
+                    'Hat',
+                ]);
+            });
+        });
     });
 
     describe('Product collections property', () => {
@@ -1639,7 +1897,7 @@ describe('Collection resolver', () => {
                     name: 'endsWith camera',
                 },
                 {
-                    id: 'T_23',
+                    id: 'T_25',
                     name: 'pear electronics',
                 },
             ]);
@@ -1921,6 +2179,21 @@ const GET_COLLECTION_NESTED_PARENTS = gql`
                     }
                 }
             }
+        }
+    }
+`;
+
+const PREVIEW_COLLECTION_VARIANTS = gql`
+    query PreviewCollectionVariants(
+        $input: PreviewCollectionVariantsInput!
+        $options: ProductVariantListOptions
+    ) {
+        previewCollectionVariants(input: $input, options: $options) {
+            items {
+                id
+                name
+            }
+            totalItems
         }
     }
 `;

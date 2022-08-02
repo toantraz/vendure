@@ -2138,6 +2138,31 @@ export type PaymentMethodQuote = {
  * Permissions for administrators and customers. Used to control access to
  * GraphQL resolvers via the {@link Allow} decorator.
  *
+ * ## Understanding Permission.Owner
+ *
+ * `Permission.Owner` is a special permission which is used in some of the Vendure resolvers to indicate that that resolver should only
+ * be accessible to the "owner" of that resource.
+ *
+ * For example, the Shop API `activeCustomer` query resolver should only return the Customer object for the "owner" of that Customer, i.e.
+ * based on the activeUserId of the current session. As a result, the resolver code looks like this:
+ *
+ * @example
+ * ```TypeScript
+ * \@Query()
+ * \@Allow(Permission.Owner)
+ * async activeCustomer(\@Ctx() ctx: RequestContext): Promise<Customer | undefined> {
+ *   const userId = ctx.activeUserId;
+ *   if (userId) {
+ *     return this.customerService.findOneByUserId(ctx, userId);
+ *   }
+ * }
+ * ```
+ *
+ * Here we can see that the "ownership" must be enforced by custom logic inside the resolver. Since "ownership" cannot be defined generally
+ * nor statically encoded at build-time, any resolvers using `Permission.Owner` **must** include logic to enforce that only the owner
+ * of the resource has access. If not, then it is the equivalent of using `Permission.Public`.
+ *
+ *
  * @docsCategory common
  */
 export enum Permission {
@@ -2779,6 +2804,7 @@ export type ShippingMethod = Node & {
     id: Scalars['ID'];
     createdAt: Scalars['DateTime'];
     updatedAt: Scalars['DateTime'];
+    languageCode: LanguageCode;
     code: Scalars['String'];
     name: Scalars['String'];
     description: Scalars['String'];
@@ -3579,6 +3605,24 @@ export type GetActiveCustomerWithOrdersProductSlugQuery = {
     }>;
 };
 
+export type GetActiveCustomerWithOrdersProductPriceQueryVariables = Exact<{
+    options?: Maybe<OrderListOptions>;
+}>;
+
+export type GetActiveCustomerWithOrdersProductPriceQuery = {
+    activeCustomer?: Maybe<{
+        orders: {
+            items: Array<{
+                lines: Array<
+                    Pick<OrderLine, 'linePrice'> & {
+                        productVariant: Pick<ProductVariant, 'id' | 'name' | 'price'>;
+                    }
+                >;
+            }>;
+        };
+    }>;
+};
+
 type DiscriminateUnion<T, U> = T extends U ? T : never;
 
 export namespace TestOrderFragment {
@@ -4242,5 +4286,47 @@ export namespace GetActiveCustomerWithOrdersProductSlug {
                 >[number]
             >['productVariant']
         >['product']
+    >;
+}
+
+export namespace GetActiveCustomerWithOrdersProductPrice {
+    export type Variables = GetActiveCustomerWithOrdersProductPriceQueryVariables;
+    export type Query = GetActiveCustomerWithOrdersProductPriceQuery;
+    export type ActiveCustomer = NonNullable<GetActiveCustomerWithOrdersProductPriceQuery['activeCustomer']>;
+    export type Orders = NonNullable<
+        NonNullable<GetActiveCustomerWithOrdersProductPriceQuery['activeCustomer']>['orders']
+    >;
+    export type Items = NonNullable<
+        NonNullable<
+            NonNullable<
+                NonNullable<GetActiveCustomerWithOrdersProductPriceQuery['activeCustomer']>['orders']
+            >['items']
+        >[number]
+    >;
+    export type Lines = NonNullable<
+        NonNullable<
+            NonNullable<
+                NonNullable<
+                    NonNullable<
+                        NonNullable<GetActiveCustomerWithOrdersProductPriceQuery['activeCustomer']>['orders']
+                    >['items']
+                >[number]
+            >['lines']
+        >[number]
+    >;
+    export type ProductVariant = NonNullable<
+        NonNullable<
+            NonNullable<
+                NonNullable<
+                    NonNullable<
+                        NonNullable<
+                            NonNullable<
+                                GetActiveCustomerWithOrdersProductPriceQuery['activeCustomer']
+                            >['orders']
+                        >['items']
+                    >[number]
+                >['lines']
+            >[number]
+        >['productVariant']
     >;
 }

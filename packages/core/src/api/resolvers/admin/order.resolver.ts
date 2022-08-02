@@ -24,8 +24,9 @@ import {
     TransitionPaymentToStateResult,
 } from '@vendure/common/lib/generated-types';
 import { PaginatedList } from '@vendure/common/lib/shared-types';
+import { TransactionalConnection } from '../../../connection';
 
-import { ErrorResultUnion } from '../../../common/error/error-result';
+import { ErrorResultUnion, isGraphQlErrorResult } from '../../../common/error/error-result';
 import { Fulfillment } from '../../../entity/fulfillment/fulfillment.entity';
 import { Order } from '../../../entity/order/order.entity';
 import { Payment } from '../../../entity/payment/payment.entity';
@@ -34,26 +35,37 @@ import { FulfillmentState } from '../../../service/helpers/fulfillment-state-mac
 import { OrderState } from '../../../service/helpers/order-state-machine/order-state';
 import { PaymentState } from '../../../service/helpers/payment-state-machine/payment-state';
 import { OrderService } from '../../../service/services/order.service';
-import { ShippingMethodService } from '../../../service/services/shipping-method.service';
 import { RequestContext } from '../../common/request-context';
 import { Allow } from '../../decorators/allow.decorator';
+import { RelationPaths, Relations } from '../../decorators/relations.decorator';
 import { Ctx } from '../../decorators/request-context.decorator';
 import { Transaction } from '../../decorators/transaction.decorator';
 
 @Resolver()
 export class OrderResolver {
-    constructor(private orderService: OrderService, private shippingMethodService: ShippingMethodService) {}
+    constructor(
+        private orderService: OrderService, 
+        private connection: TransactionalConnection
+    ) {}
 
     @Query()
     @Allow(Permission.ReadOrder)
-    orders(@Ctx() ctx: RequestContext, @Args() args: QueryOrdersArgs): Promise<PaginatedList<Order>> {
-        return this.orderService.findAll(ctx, args.options || undefined);
+    orders(
+        @Ctx() ctx: RequestContext,
+        @Args() args: QueryOrdersArgs,
+        @Relations(Order) relations: RelationPaths<Order>,
+    ): Promise<PaginatedList<Order>> {
+        return this.orderService.findAll(ctx, args.options || undefined, relations);
     }
 
     @Query()
     @Allow(Permission.ReadOrder)
-    async order(@Ctx() ctx: RequestContext, @Args() args: QueryOrderArgs): Promise<Order | undefined> {
-        return this.orderService.findOne(ctx, args.id);
+    async order(
+        @Ctx() ctx: RequestContext,
+        @Args() args: QueryOrderArgs,
+        @Relations(Order) relations: RelationPaths<Order>,
+    ): Promise<Order | undefined> {
+        return this.orderService.findOne(ctx, args.id, relations);
     }
 
     @Transaction()
@@ -165,7 +177,16 @@ export class OrderResolver {
     @Mutation()
     @Allow(Permission.UpdateOrder)
     async modifyOrder(@Ctx() ctx: RequestContext, @Args() args: MutationModifyOrderArgs) {
-        return this.orderService.modifyOrder(ctx, args.input);
+        await this.connection.startTransaction(ctx);
+        const result = await this.orderService.modifyOrder(ctx, args.input);
+
+        if (args.input.dryRun || isGraphQlErrorResult(result)) {
+            await this.connection.rollBackTransaction(ctx);
+        } else {
+            await this.connection.commitOpenTransaction(ctx);
+        }
+
+        return result
     }
 
     @Transaction()

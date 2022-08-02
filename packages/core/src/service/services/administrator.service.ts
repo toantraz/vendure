@@ -4,10 +4,10 @@ import {
     DeletionResult,
     UpdateAdministratorInput,
 } from '@vendure/common/lib/generated-types';
-import { SUPER_ADMIN_ROLE_CODE } from '@vendure/common/lib/shared-constants';
 import { ID, PaginatedList } from '@vendure/common/lib/shared-types';
 
 import { RequestContext } from '../../api/common/request-context';
+import { RelationPaths } from '../../api/index';
 import { EntityNotFoundError, InternalServerError } from '../../common/error/errors';
 import { idsAreEqual } from '../../common/index';
 import { ListQueryOptions } from '../../common/types/common-types';
@@ -58,10 +58,11 @@ export class AdministratorService {
     findAll(
         ctx: RequestContext,
         options?: ListQueryOptions<Administrator>,
+        relations?: RelationPaths<Administrator>,
     ): Promise<PaginatedList<Administrator>> {
         return this.listQueryBuilder
             .build(Administrator, options, {
-                relations: ['user', 'user.roles'],
+                relations: relations ?? ['user', 'user.roles'],
                 where: { deletedAt: null },
                 ctx,
             })
@@ -76,9 +77,13 @@ export class AdministratorService {
      * @description
      * Get an Administrator by id.
      */
-    findOne(ctx: RequestContext, administratorId: ID): Promise<Administrator | undefined> {
+    findOne(
+        ctx: RequestContext,
+        administratorId: ID,
+        relations?: RelationPaths<Administrator>,
+    ): Promise<Administrator | undefined> {
         return this.connection.getRepository(ctx, Administrator).findOne(administratorId, {
-            relations: ['user', 'user.roles'],
+            relations: relations ?? ['user', 'user.roles'],
             where: {
                 deletedAt: null,
             },
@@ -89,8 +94,13 @@ export class AdministratorService {
      * @description
      * Get an Administrator based on the User id.
      */
-    findOneByUserId(ctx: RequestContext, userId: ID): Promise<Administrator | undefined> {
+    findOneByUserId(
+        ctx: RequestContext,
+        userId: ID,
+        relations?: RelationPaths<Administrator>,
+    ): Promise<Administrator | undefined> {
         return this.connection.getRepository(ctx, Administrator).findOne({
+            relations,
             where: {
                 user: { id: userId },
                 deletedAt: null,
@@ -148,7 +158,7 @@ export class AdministratorService {
         if (input.roleIds) {
             const isSoleSuperAdmin = await this.isSoleSuperadmin(ctx, input.id);
             if (isSoleSuperAdmin) {
-                const superAdminRole = await this.roleService.getSuperAdminRole();
+                const superAdminRole = await this.roleService.getSuperAdminRole(ctx);
                 if (!input.roleIds.find(id => idsAreEqual(id, superAdminRole.id))) {
                     throw new InternalServerError('error.superadmin-must-have-superadmin-role');
                 }
@@ -224,7 +234,7 @@ export class AdministratorService {
      * with SuperAdmin permissions.
      */
     private async isSoleSuperadmin(ctx: RequestContext, id: ID) {
-        const superAdminRole = await this.roleService.getSuperAdminRole();
+        const superAdminRole = await this.roleService.getSuperAdminRole(ctx);
         const allAdmins = await this.connection.getRepository(ctx, Administrator).find({
             relations: ['user', 'user.roles'],
         });
@@ -248,7 +258,7 @@ export class AdministratorService {
     private async ensureSuperAdminExists() {
         const { superadminCredentials } = this.configService.authOptions;
 
-        const superAdminUser = await this.connection.getRepository(User).findOne({
+        const superAdminUser = await this.connection.rawConnection.getRepository(User).findOne({
             where: {
                 identifier: superadminCredentials.identifier,
             },
@@ -264,7 +274,7 @@ export class AdministratorService {
                 roleIds: [superAdminRole.id],
             });
         } else {
-            const superAdministrator = await this.connection.getRepository(Administrator).findOne({
+            const superAdministrator = await this.connection.rawConnection.getRepository(Administrator).findOne({
                 where: {
                     user: superAdminUser,
                 },
@@ -276,18 +286,19 @@ export class AdministratorService {
                     lastName: 'Admin',
                 });
                 const createdAdministrator = await this.connection
+                    .rawConnection
                     .getRepository(Administrator)
                     .save(administrator);
                 createdAdministrator.user = superAdminUser;
-                await this.connection.getRepository(Administrator).save(createdAdministrator);
+                await this.connection.rawConnection.getRepository(Administrator).save(createdAdministrator);
             } else if (superAdministrator.deletedAt != null) {
                 superAdministrator.deletedAt = null;
-                await this.connection.getRepository(Administrator).save(superAdministrator);
+                await this.connection.rawConnection.getRepository(Administrator).save(superAdministrator);
             }
 
             if (superAdminUser.deletedAt != null) {
                 superAdminUser.deletedAt = null;
-                await this.connection.getRepository(User).save(superAdminUser);
+                await this.connection.rawConnection.getRepository(User).save(superAdminUser);
             }
         }
     }
