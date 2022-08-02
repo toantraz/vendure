@@ -582,8 +582,14 @@ export class OrderModifier {
             for (const def of customFieldDefs) {
                 const key = def.name;
                 const existingValue = existingCustomFields?.[key];
-                if (existingValue !== null && def.defaultValue && existingValue !== def.defaultValue) {
-                    return false;
+                if (existingValue != null) {
+                    if (def.defaultValue != null) {
+                        if (existingValue !== def.defaultValue) {
+                            return false;
+                        }
+                    } else {
+                        return false;
+                    }
                 }
             }
             return true;
@@ -603,7 +609,13 @@ export class OrderModifier {
 
         for (const def of customFieldDefs) {
             const key = def.name;
-            const existingValue = existingCustomFields?.[key];
+            // This ternary is there because with the MySQL driver, boolean customFields with a default
+            // of `false` were being rep-resented as `0`, thus causing the equality check to fail.
+            // So if it's a boolean, we'll explicitly coerce the value to a boolean.
+            const existingValue =
+                def.type === 'boolean' && typeof existingCustomFields?.[key] === 'number'
+                    ? !!existingCustomFields?.[key]
+                    : existingCustomFields?.[key];
             if (existingValue !== undefined) {
                 const valuesMatch =
                     JSON.stringify(inputCustomFields?.[key]) === JSON.stringify(existingValue);
