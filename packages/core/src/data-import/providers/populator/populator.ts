@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { ConfigurableOperationInput, LanguageCode } from '@vendure/common/lib/generated-types';
+import { ConfigurableOperationInput, LanguageCode, UpdateTaxRateInput } from '@vendure/common/lib/generated-types';
 import { normalizeString } from '@vendure/common/lib/normalize-string';
 import { notNullOrUndefined } from '@vendure/common/lib/shared-utils';
 
@@ -28,6 +28,9 @@ import {
     ZoneMap,
 } from '../../types';
 import { AssetImporter } from '../asset-importer/asset-importer';
+import { createOrUpdateCollection } from './collection';
+import { createOrUpdateRole } from './role';
+import { createTaxCategory } from './tax';
 
 /**
  * @description
@@ -124,6 +127,7 @@ export class Populator {
             } catch (e: any) {
                 Logger.error(e.message);
             }
+            /*
             const collection = await this.collectionService.create(ctx, {
                 translations: [
                     {
@@ -139,6 +143,24 @@ export class Populator {
                 featuredAssetId: assets.length ? assets[0].id.toString() : undefined,
                 filters,
             });
+            */
+            const data = {
+                translations: [
+                    {
+                        languageCode: ctx.languageCode,
+                        name: collectionDef.name,
+                        description: collectionDef.description || '',
+                        slug: collectionDef.slug ?? collectionDef.name,
+                    },
+                ],
+                isPrivate: collectionDef.private || false,
+                parentId,
+                assetIds: assets.map(a => a.id.toString()),
+                featuredAssetId: assets.length ? assets[0].id.toString() : undefined,
+                filters,
+            }
+
+            const collection = await createOrUpdateCollection(ctx, this.collectionService, collectionDef.slug!, data);
             collectionMap.set(collectionDef.name, collection);
         }
         // Wait for the created collection operations to complete before running
@@ -258,16 +280,35 @@ export class Populator {
         const taxCategories: TaxCategory[] = [];
 
         for (const taxRate of taxRates) {
-            const category = await this.taxCategoryService.create(ctx, { name: taxRate.name });
+            // const category = await this.taxCategoryService.create(ctx, { name: taxRate.name });
+            const category = await createTaxCategory(ctx, this.taxCategoryService, taxRate.name);
 
             for (const { entity } of zoneMap.values()) {
-                await this.taxRateService.create(ctx, {
-                    zoneId: entity.id,
-                    value: taxRate.percentage,
-                    categoryId: category.id,
-                    name: `${taxRate.name} ${entity.name}`,
-                    enabled: true,
+                // update if tax rate exists
+                const list = await this.taxRateService.findAll(ctx, {
+                    filter: {
+                        name: { eq: `${taxRate.name} ${entity.name}` }
+                    }
                 });
+
+                if (list && list.totalItems > 0) {
+                    for (const item of list.items) {
+                        const input: UpdateTaxRateInput = {
+                            id: item.id,
+                            value: taxRate.percentage
+                        }
+                        await this.taxRateService.update(ctx, input)
+                    }
+                } else {
+                    // create new tax rate
+                    await this.taxRateService.create(ctx, {
+                        zoneId: entity.id,
+                        value: taxRate.percentage,
+                        categoryId: category.id,
+                        name: `${taxRate.name} ${entity.name}`,
+                        enabled: true,
+                    });
+                }
             }
         }
     }
@@ -314,7 +355,8 @@ export class Populator {
             return;
         }
         for (const roleDef of roles) {
-            await this.roleService.create(ctx, roleDef);
+            // await this.roleService.create(ctx, roleDef);
+            await createOrUpdateRole(ctx, this.roleService, roleDef);
         }
     }
 }

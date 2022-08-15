@@ -1,14 +1,7 @@
 version: '3'
 services:
-  vendure_builder:
+  build:
     build: 
       context: .
-      dockerfile: ./Dockerfile.builder
+      dockerfile: ./Dockerfile
     image: vendure_builder
-  vendure_server:
-    build:
-      context: .
-      dockerfile: ./Dockerfile.runner
-    image: vendure/server
-    depends_on:
-      - vendure_builder

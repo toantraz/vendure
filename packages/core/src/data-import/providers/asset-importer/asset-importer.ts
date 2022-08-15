@@ -1,11 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import fs from 'fs-extra';
 import path from 'path';
+import util from 'util';
+import fetch from 'node-fetch';
 
 import { RequestContext } from '../../../api/index';
 import { ConfigService } from '../../../config/config.service';
 import { Asset } from '../../../entity/asset/asset.entity';
 import { AssetService } from '../../../service/services/asset.service';
+import { assetFiles } from './asset-http';
 
 /**
  * @description
@@ -28,20 +31,22 @@ export class AssetImporter {
      * creation of duplicates.
      */
     async getAssets(
-        assetPaths: string[],
+        _assetPaths: string[],
         ctx?: RequestContext,
     ): Promise<{ assets: Asset[]; errors: string[] }> {
         const assets: Asset[] = [];
         const errors: string[] = [];
         const { importAssetsDir } = this.configService.importExportOptions;
+        const assetPaths = await assetFiles(_assetPaths, importAssetsDir);
+
         const uniqueAssetPaths = new Set(assetPaths);
         for (const assetPath of uniqueAssetPaths.values()) {
             const cachedAsset = this.assetMap.get(assetPath);
             if (cachedAsset) {
                 assets.push(cachedAsset);
             } else {
-                const filename = path.join(importAssetsDir, assetPath);
-
+                // const filename = path.join(importAssetsDir, assetPath);
+                const filename = assetPath;
                 if (fs.existsSync(filename)) {
                     const fileStat = fs.statSync(filename);
                     if (fileStat.isFile()) {
