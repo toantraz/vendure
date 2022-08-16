@@ -1,7 +1,21 @@
 version: '3'
+networks:
+  local_network:
+    external: true
 services:
-  build:
-    build: 
-      context: .
-      dockerfile: ./Dockerfile
-    image: vendure_builder
+  server:
+    image: vendure
+    container_name: vendure
+    restart: unless-stopped
+    command: ["pm2-runtime", "start", "pm2.config.js"]
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    env_file:
+      - .env.local
+    ports:
+      - 3000:3000
+    networks:
+      - local_network
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
