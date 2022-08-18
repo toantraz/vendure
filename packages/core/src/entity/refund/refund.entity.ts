@@ -7,6 +7,7 @@ import { VendureEntity } from '../base/base.entity';
 import { EntityId } from '../entity-id.decorator';
 import { OrderItem } from '../order-item/order-item.entity';
 import { Payment } from '../payment/payment.entity';
+import { DecimalTransformer } from '../value-transformers';
 
 @Entity()
 export class Refund extends VendureEntity {
@@ -20,7 +21,7 @@ export class Refund extends VendureEntity {
 
     @Column() adjustment: number;
 
-    @Column() total: number;
+    @Column({ type: 'decimal', precision: 10, scale: 2, transformer: new DecimalTransformer() }) total: number;
 
     @Column() method: string;
 

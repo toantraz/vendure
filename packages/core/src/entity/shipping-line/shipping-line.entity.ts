@@ -9,6 +9,7 @@ import { VendureEntity } from '../base/base.entity';
 import { EntityId } from '../entity-id.decorator';
 import { Order } from '../order/order.entity';
 import { ShippingMethod } from '../shipping-method/shipping-method.entity';
+import { DecimalTransformer } from '../value-transformers';
 
 @Entity()
 export class ShippingLine extends VendureEntity {
@@ -26,7 +27,7 @@ export class ShippingLine extends VendureEntity {
     @ManyToOne(type => Order, order => order.shippingLines)
     order: Order;
 
-    @Column()
+    @Column({ type: 'decimal', precision: 10, scale: 2, transformer: new DecimalTransformer() })
     listPrice: number;
 
     @Column()

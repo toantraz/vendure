@@ -8,6 +8,7 @@ import { grossPriceOf, netPriceOf } from '../../common/tax-utils';
 import { VendureEntity } from '../base/base.entity';
 import { OrderModification } from '../order-modification/order-modification.entity';
 import { Order } from '../order/order.entity';
+import { DecimalTransformer } from '../value-transformers';
 
 /**
  * @description
@@ -25,7 +26,7 @@ export class Surcharge extends VendureEntity {
     @Column()
     description: string;
 
-    @Column()
+    @Column({ type: 'decimal', precision: 10, scale: 2, transformer: new DecimalTransformer() })
     listPrice: number;
 
     @Column()

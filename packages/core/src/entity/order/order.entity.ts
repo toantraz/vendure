@@ -28,6 +28,7 @@ import { Payment } from '../payment/payment.entity';
 import { Promotion } from '../promotion/promotion.entity';
 import { ShippingLine } from '../shipping-line/shipping-line.entity';
 import { Surcharge } from '../surcharge/surcharge.entity';
+import { DecimalTransformer } from '../value-transformers';
 
 /**
  * @description
@@ -137,14 +138,14 @@ export class Order extends VendureEntity implements ChannelAware, HasCustomField
      * To get a total of all OrderLines which does not account for prorated discounts, use the
      * sum of {@link OrderLine}'s `discountedLinePrice` values.
      */
-    @Column()
+    @Column({ type: 'decimal', precision: 13, scale: 2, transformer: new DecimalTransformer() })
     subTotal: number;
 
     /**
      * @description
      * Same as subTotal, but inclusive of tax.
      */
-    @Column()
+    @Column({ type: 'decimal', precision: 13, scale: 2, transformer: new DecimalTransformer() })
     subTotalWithTax: number;
 
     /**
@@ -156,12 +157,12 @@ export class Order extends VendureEntity implements ChannelAware, HasCustomField
 
     /**
      * @description
-     * The total of all the `shippingLines`.
+     * The total of all the `shippingLines`.x
      */
-    @Column({ default: 0 })
+    @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
     shipping: number;
 
-    @Column({ default: 0 })
+    @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
     shippingWithTax: number;
 
     @Calculated({ relations: ['lines', 'lines.items', 'shippingLines'] })
@@ -214,7 +215,7 @@ export class Order extends VendureEntity implements ChannelAware, HasCustomField
         expression: 'total',
     })
     get total(): number {
-        return this.subTotal + (this.shipping || 0);
+        return Number(this.subTotal) + Number(this.shipping || 0);
     }
 
     /**
@@ -238,7 +239,7 @@ export class Order extends VendureEntity implements ChannelAware, HasCustomField
         expression: 'twt',
     })
     get totalWithTax(): number {
-        return this.subTotalWithTax + (this.shippingWithTax || 0);
+        return Number(this.subTotalWithTax) + Number(this.shippingWithTax || 0);
     }
 
     @Calculated({

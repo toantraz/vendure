@@ -133,7 +133,7 @@ export class CurrencyInputComponent implements ControlValueAccessor, OnInit, OnC
     }
 
     onInput(value: string) {
-        const integerValue = Math.round(+value * 100);
+        const integerValue = Math.round(+value);
         if (typeof this.onChange === 'function') {
             this.onChange(integerValue);
         }
@@ -155,7 +155,7 @@ export class CurrencyInputComponent implements ControlValueAccessor, OnInit, OnC
     writeValue(value: any): void {
         const numericValue = +value;
         if (!Number.isNaN(numericValue)) {
-            this._inputValue = this.toNumericString(Math.floor(value) / 100);
+            this._inputValue = this.toNumericString(Math.floor(value));
         }
     }
 

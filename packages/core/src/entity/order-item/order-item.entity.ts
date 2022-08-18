@@ -11,6 +11,7 @@ import { Fulfillment } from '../fulfillment/fulfillment.entity';
 import { OrderLine } from '../order-line/order-line.entity';
 import { Refund } from '../refund/refund.entity';
 import { Cancellation } from '../stock-movement/cancellation.entity';
+import { DecimalTransformer } from '../value-transformers';
 
 /**
  * @description
@@ -36,7 +37,7 @@ export class OrderItem extends VendureEntity {
      * `listPrice`, except when the ProductVariant price has changed in the mean time and a re-calculation of
      * the Order has been performed.
      */
-    @Column({ nullable: true })
+    @Column({ type: 'decimal', precision: 10, scale: 2, transformer: new DecimalTransformer(), nullable: true })
     initialListPrice: number;
 
     /**
@@ -44,7 +45,7 @@ export class OrderItem extends VendureEntity {
      * This is the price as listed by the ProductVariant (and possibly modified by the {@link OrderItemPriceCalculationStrategy}),
      * which, depending on the current Channel, may or may not include tax.
      */
-    @Column()
+    @Column({ type: 'decimal', precision: 10, scale: 2, transformer: new DecimalTransformer() })
     listPrice: number;
 
     /**

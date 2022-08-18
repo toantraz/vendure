@@ -282,7 +282,7 @@ export class Importer {
                             ),
                         };
                     }),
-                    price: Math.round(variant.price * 100),
+                    price: Math.round(variant.price),
                     customFields: variantCustomFields,
                 });
             }

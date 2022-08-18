@@ -6,6 +6,7 @@ import { PaymentState } from '../../service/helpers/payment-state-machine/paymen
 import { VendureEntity } from '../base/base.entity';
 import { Order } from '../order/order.entity';
 import { Refund } from '../refund/refund.entity';
+import { DecimalTransformer } from '../value-transformers';
 
 /**
  * @description
@@ -22,7 +23,7 @@ export class Payment extends VendureEntity {
 
     @Column() method: string;
 
-    @Column() amount: number;
+    @Column({ type: 'decimal', precision: 13, scale: 2, transformer: new DecimalTransformer() }) amount: number;
 
     @Column('varchar') state: PaymentState;
 

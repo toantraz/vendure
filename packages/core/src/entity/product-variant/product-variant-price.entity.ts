@@ -3,6 +3,7 @@ import { Column, Entity, ManyToOne } from 'typeorm';
 
 import { VendureEntity } from '../base/base.entity';
 import { EntityId } from '../entity-id.decorator';
+import { DecimalTransformer } from '../value-transformers';
 
 import { ProductVariant } from './product-variant.entity';
 
@@ -19,7 +20,7 @@ export class ProductVariantPrice extends VendureEntity {
         super(input);
     }
 
-    @Column() price: number;
+    @Column({ type: 'decimal', precision: 10, scale: 2, transformer: new DecimalTransformer() }) price: number;
 
     @EntityId() channelId: ID;
 
