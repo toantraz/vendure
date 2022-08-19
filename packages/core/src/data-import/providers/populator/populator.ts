@@ -29,6 +29,7 @@ import {
 } from '../../types';
 import { AssetImporter } from '../asset-importer/asset-importer';
 import { createOrUpdateCollection } from './collection';
+import { createOrUpdateCountry } from './country';
 import { createOrUpdateRole } from './role';
 import { createTaxCategory } from './tax';
 
@@ -244,11 +245,13 @@ export class Populator {
             zoneMap.set(zone.name, { entity: zone, members: zone.members.map(m => m.id) });
         }
         for (const { name, code, zone } of countries) {
-            const countryEntity = await this.countryService.create(ctx, {
+            const data = {
                 code,
                 enabled: true,
                 translations: [{ languageCode: ctx.languageCode, name }],
-            });
+            }
+
+            const countryEntity = await createOrUpdateCountry(ctx, this.countryService, data);
 
             let zoneItem = zoneMap.get(zone);
             if (!zoneItem) {
