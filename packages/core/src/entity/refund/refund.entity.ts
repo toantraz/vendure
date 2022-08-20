@@ -17,9 +17,9 @@ export class Refund extends VendureEntity {
 
     @Column() items: number;
 
-    @Column() shipping: number;
+    @Column({ type: 'decimal', precision: 10, scale: 2, transformer: new DecimalTransformer() }) shipping: number;
 
-    @Column() adjustment: number;
+    @Column({ type: 'decimal', precision: 10, scale: 2, transformer: new DecimalTransformer() }) adjustment: number;
 
     @Column({ type: 'decimal', precision: 10, scale: 2, transformer: new DecimalTransformer() }) total: number;
 
