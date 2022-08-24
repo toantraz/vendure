@@ -48,7 +48,7 @@ export interface OrderByCodeAccessStrategy extends InjectableStrategy {
  * @docsPage OrderByCodeAccessStrategy
  */
 export class DefaultOrderByCodeAccessStrategy implements OrderByCodeAccessStrategy {
-    private anonymousAccessDuration;
+    private anonymousAccessDuration: string;
 
     constructor(anonymousAccessDuration: string) {
         this.anonymousAccessDuration = anonymousAccessDuration;

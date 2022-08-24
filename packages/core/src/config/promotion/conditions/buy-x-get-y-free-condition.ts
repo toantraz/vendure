@@ -1,5 +1,6 @@
 import { LanguageCode } from '@vendure/common/lib/generated-types';
 import { ID } from '@vendure/common/lib/shared-types';
+import { OrderItem } from '../../../entity';
 
 import { PromotionCondition } from '../promotion-condition';
 
@@ -38,7 +39,7 @@ export const buyXGetYFreeCondition = new PromotionCondition({
         const xIds = createIdentityMap(args.variantIdsX);
         const yIds = createIdentityMap(args.variantIdsY);
         let matches = 0;
-        const freeItemCandidates = [];
+        const freeItemCandidates: OrderItem[] = [];
         for (const line of order.lines) {
             const variantId = line.productVariant.id;
             if (variantId in xIds) {
@@ -51,7 +52,7 @@ export const buyXGetYFreeCondition = new PromotionCondition({
         const quantity = Math.floor(matches / args.amountX);
         if (!quantity || !freeItemCandidates.length) return false;
         const freeItemIds = freeItemCandidates
-            .sort((a, b) => {
+            .sort((a: any, b: any) => {
                 const unitPriceA = ctx.channel.pricesIncludeTax ? a.unitPriceWithTax : a.unitPrice;
                 const unitPriceB = ctx.channel.pricesIncludeTax ? b.unitPriceWithTax : b.unitPrice;
                 if (unitPriceA < unitPriceB) return -1;

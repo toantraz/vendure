@@ -99,7 +99,7 @@ export function shouldUseYarn() {
 
 export function checkThatNpmCanReadCwd() {
     const cwd = process.cwd();
-    let childOutput = null;
+    let childOutput: string = '';
     try {
         // Note: intentionally using spawn over exec since
         // the problem doesn't reproduce otherwise.
@@ -329,7 +329,7 @@ async function checkPostgresDbExists(options: any, root: string): Promise<true> 
 
     try {
         await client.connect();
-    } catch (e) {
+    } catch (e: any) {
         if (e.code === '3D000') {
             throwDatabaseDoesNotExist(options.database);
         }

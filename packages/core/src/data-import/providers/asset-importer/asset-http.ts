@@ -18,7 +18,7 @@ const download = async (assetPath: string, tartgetDir: string = '/tmp') => {
 }
 
 const assetFiles = async (assetPaths: string[], importAssetsDir: string, tmpDir: string = '/tmp') => {
-  const files = []
+  const files: string[] = []
   for (const assetPath of assetPaths) {
     if (isAssetHttp(assetPath)) {
       const filePath = await download(assetPath, tmpDir);

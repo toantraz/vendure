@@ -12,7 +12,7 @@ import {
 } from '@vendure/core';
 import Bull, { ConnectionOptions, Processor, Queue, QueueScheduler, Worker, WorkerOptions } from 'bullmq';
 import { EventEmitter } from 'events';
-import Redis, { RedisOptions } from 'ioredis';
+import Redis, { Cluster, RedisOptions } from 'ioredis';
 
 import { ALL_JOB_TYPES, BULLMQ_PLUGIN_OPTIONS, loggerCtx } from './constants';
 import { RedisHealthIndicator } from './redis-health-indicator';

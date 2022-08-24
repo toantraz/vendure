@@ -44,7 +44,7 @@ export class StripeController {
             return;
         }
 
-        let event = null;
+        let event: Stripe.Event;
         try {
             event = this.stripeService.constructEventFromPayload(request.rawBody, signature);
         } catch (e: any) {

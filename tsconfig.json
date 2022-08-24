@@ -13,6 +13,7 @@
     "strictPropertyInitialization": false,
     "sourceMap": false,
     "newLine": "LF",
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "noImplicitAny": false
   }
 }

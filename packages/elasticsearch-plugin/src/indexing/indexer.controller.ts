@@ -265,7 +265,7 @@ export class ElasticsearchIndexerController implements OnModuleInit, OnModuleDes
 
                 Logger.verbose(`Will reindex ${totalProductIds} products`, loggerCtx);
 
-                let productIds = [];
+                let productIds: Product[] = [];
                 let skip = 0;
                 let finishedProductsCount = 0;
                 do {

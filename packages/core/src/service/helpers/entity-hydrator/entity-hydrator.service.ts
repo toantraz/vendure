@@ -168,7 +168,7 @@ export class EntityHydrator {
             if (typeof relation === 'string') {
                 const parts = !relation.startsWith('customFields') ? relation.split('.') : [relation];
                 let entity: Record<string, any> | undefined = target;
-                const path = [];
+                const path: string[] = [];
                 for (const part of parts) {
                     path.push(part);
                     if (entity && entity[part]) {

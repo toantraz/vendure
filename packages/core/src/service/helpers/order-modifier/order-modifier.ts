@@ -178,7 +178,7 @@ export class OrderModifier {
             if (!orderLine.items) {
                 orderLine.items = [];
             }
-            const newOrderItems = [];
+            const newOrderItems: OrderItem[] = [];
             for (let i = currentQuantity; i < quantity; i++) {
                 newOrderItems.push(
                     new OrderItem({
